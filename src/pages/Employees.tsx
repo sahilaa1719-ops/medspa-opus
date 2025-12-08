@@ -1,0 +1,226 @@
+import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { Search, Plus, Eye, Pencil, Trash2 } from 'lucide-react';
+import { Header } from '@/components/layout/Header';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { StatusBadge } from '@/components/ui/status-badge';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Badge } from '@/components/ui/badge';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
+import { useData } from '@/context/DataContext';
+import { toast } from 'sonner';
+import { EmployeeFormModal } from '@/components/employees/EmployeeFormModal';
+
+const Employees = () => {
+  const navigate = useNavigate();
+  const { employees, locations, deleteEmployee } = useData();
+  const [search, setSearch] = useState('');
+  const [locationFilter, setLocationFilter] = useState('all');
+  const [statusFilter, setStatusFilter] = useState('all');
+  const [deleteId, setDeleteId] = useState<string | null>(null);
+  const [isFormOpen, setIsFormOpen] = useState(false);
+  const [editingEmployee, setEditingEmployee] = useState<string | null>(null);
+
+  const getLocationById = (id: string) => locations.find((l) => l.id === id);
+
+  const filteredEmployees = employees.filter((employee) => {
+    const matchesSearch =
+      employee.fullName.toLowerCase().includes(search.toLowerCase()) ||
+      employee.email.toLowerCase().includes(search.toLowerCase()) ||
+      employee.position.toLowerCase().includes(search.toLowerCase());
+
+    const matchesLocation =
+      locationFilter === 'all' || employee.locationIds.includes(locationFilter);
+
+    const matchesStatus =
+      statusFilter === 'all' || employee.status === statusFilter;
+
+    return matchesSearch && matchesLocation && matchesStatus;
+  });
+
+  const handleDelete = () => {
+    if (deleteId) {
+      deleteEmployee(deleteId);
+      toast.success('Employee deleted successfully');
+      setDeleteId(null);
+    }
+  };
+
+  const handleEdit = (id: string) => {
+    setEditingEmployee(id);
+    setIsFormOpen(true);
+  };
+
+  const handleCloseForm = () => {
+    setIsFormOpen(false);
+    setEditingEmployee(null);
+  };
+
+  return (
+    <div className="min-h-screen">
+      <Header title="Employees" />
+
+      <div className="p-6">
+        {/* Filters */}
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex flex-1 gap-4">
+            <div className="relative flex-1 max-w-md">
+              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                placeholder="Search by name, email, or position..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className="pl-10"
+              />
+            </div>
+            <Select value={locationFilter} onValueChange={setLocationFilter}>
+              <SelectTrigger className="w-48">
+                <SelectValue placeholder="All Locations" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Locations</SelectItem>
+                {locations.map((location) => (
+                  <SelectItem key={location.id} value={location.id}>
+                    {location.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Select value={statusFilter} onValueChange={setStatusFilter}>
+              <SelectTrigger className="w-32">
+                <SelectValue placeholder="Status" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Status</SelectItem>
+                <SelectItem value="active">Active</SelectItem>
+                <SelectItem value="inactive">Inactive</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <Button onClick={() => setIsFormOpen(true)}>
+            <Plus className="mr-2 h-4 w-4" />
+            Add Employee
+          </Button>
+        </div>
+
+        {/* Employee Grid */}
+        <div className="mt-6 grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+          {filteredEmployees.map((employee) => (
+            <div
+              key={employee.id}
+              className="rounded-xl border border-border bg-card p-5 shadow-sm transition-shadow hover:shadow-md"
+            >
+              <div className="flex items-start gap-4">
+                <Avatar className="h-14 w-14">
+                  <AvatarImage src={employee.photoUrl} alt={employee.fullName} />
+                  <AvatarFallback className="text-lg">
+                    {employee.fullName.split(' ').map((n) => n[0]).join('')}
+                  </AvatarFallback>
+                </Avatar>
+                <div className="flex-1 min-w-0">
+                  <h3 className="font-semibold text-card-foreground truncate">
+                    {employee.fullName}
+                  </h3>
+                  <p className="text-sm text-muted-foreground">{employee.position}</p>
+                  <div className="mt-2 flex flex-wrap gap-1">
+                    {employee.locationIds.slice(0, 2).map((locId) => {
+                      const location = getLocationById(locId);
+                      return (
+                        <Badge key={locId} variant="secondary" className="text-xs">
+                          {location?.name || 'Unknown'}
+                        </Badge>
+                      );
+                    })}
+                    {employee.locationIds.length > 2 && (
+                      <Badge variant="outline" className="text-xs">
+                        +{employee.locationIds.length - 2}
+                      </Badge>
+                    )}
+                  </div>
+                </div>
+                <StatusBadge status={employee.status}>
+                  {employee.status}
+                </StatusBadge>
+              </div>
+
+              <div className="mt-4 flex justify-end gap-2 border-t border-border pt-4">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => navigate(`/employees/${employee.id}`)}
+                >
+                  <Eye className="h-4 w-4" />
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => handleEdit(employee.id)}
+                >
+                  <Pencil className="h-4 w-4" />
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setDeleteId(employee.id)}
+                  className="text-destructive hover:text-destructive"
+                >
+                  <Trash2 className="h-4 w-4" />
+                </Button>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {filteredEmployees.length === 0 && (
+          <div className="mt-12 text-center">
+            <p className="text-muted-foreground">No employees found</p>
+          </div>
+        )}
+      </div>
+
+      {/* Delete Confirmation */}
+      <AlertDialog open={!!deleteId} onOpenChange={() => setDeleteId(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Employee</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete this employee? This will also delete all their documents and licenses. This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Employee Form Modal */}
+      <EmployeeFormModal
+        open={isFormOpen}
+        onClose={handleCloseForm}
+        employeeId={editingEmployee}
+      />
+    </div>
+  );
+};
+
+export default Employees;
