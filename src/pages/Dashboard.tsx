@@ -37,7 +37,7 @@ const Dashboard = () => {
     <div className="min-h-screen">
       <Header title="Dashboard" />
       
-      <div className="p-6">
+      <div className="p-4 lg:p-6">
         {/* Stats Grid */}
         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
           <StatsCard
@@ -68,14 +68,14 @@ const Dashboard = () => {
 
         <div className="mt-8 grid gap-6 lg:grid-cols-2">
           {/* Recent Activity */}
-          <div className="rounded-xl border border-border bg-card p-6 shadow-sm">
+          <div className="rounded-lg border border-[#E5E7EB] bg-white p-6 shadow-sm">
             <h2 className="text-lg font-semibold text-card-foreground">Recent Employees</h2>
             <div className="mt-4 space-y-4">
               {recentEmployees.map((employee) => (
                 <div key={employee.id} className="flex items-center gap-4">
                   <Avatar>
                     <AvatarImage src={employee.photoUrl} alt={employee.fullName} />
-                    <AvatarFallback>
+                    <AvatarFallback className="bg-gray-100 text-gray-700">
                       {employee.fullName.split(' ').map((n) => n[0]).join('')}
                     </AvatarFallback>
                   </Avatar>
@@ -94,7 +94,7 @@ const Dashboard = () => {
           </div>
 
           {/* Upcoming Expirations */}
-          <div className="rounded-xl border border-border bg-card p-6 shadow-sm">
+          <div className="rounded-lg border border-[#E5E7EB] bg-white p-6 shadow-sm">
             <h2 className="text-lg font-semibold text-card-foreground">Upcoming Expirations</h2>
             <div className="mt-4 space-y-4">
               {upcomingExpirations.length === 0 ? (
@@ -111,7 +111,7 @@ const Dashboard = () => {
                     <div key={license.id} className="flex items-center gap-4">
                       <Avatar className="h-10 w-10">
                         <AvatarImage src={employee?.photoUrl} alt={employee?.fullName} />
-                        <AvatarFallback>
+                        <AvatarFallback className="bg-gray-100 text-gray-700">
                           {employee?.fullName.split(' ').map((n) => n[0]).join('')}
                         </AvatarFallback>
                       </Avatar>

@@ -48,7 +48,7 @@ const Locations = () => {
     <div className="min-h-screen">
       <Header title="Locations" />
 
-      <div className="p-6">
+      <div className="p-4 lg:p-6">
         <div className="mb-6 flex justify-end">
           <Button onClick={() => setIsFormOpen(true)}>
             <Plus className="mr-2 h-4 w-4" />
@@ -60,7 +60,7 @@ const Locations = () => {
           {locations.map((location) => (
             <div
               key={location.id}
-              className="rounded-xl border border-border bg-card p-6 shadow-sm"
+              className="rounded-lg border border-[#E5E7EB] bg-white p-6 shadow-sm"
             >
               <h3 className="text-lg font-semibold text-card-foreground">
                 {location.name}

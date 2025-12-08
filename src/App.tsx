@@ -6,8 +6,26 @@ import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider, useAuth } from "@/context/AuthContext";
 import { DataProvider } from "@/context/DataContext";
 import { MainLayout } from "@/components/layout/MainLayout";
+import { EmployeeLayout } from "@/components/layout/EmployeeLayout";
+import { PayrollLayout } from "@/components/layout/PayrollLayout";
 import Login from "./pages/Login";
 import Dashboard from "./pages/Dashboard";
+import EmployeeDashboard from "./pages/EmployeeDashboard";
+import PayrollDashboard from "./pages/PayrollDashboard";
+import RunPayroll from "./pages/RunPayroll";
+import PayrollEmployees from "./pages/PayrollEmployees";
+import PayrollPayStubs from "./pages/PayrollPayStubs";
+import PayrollTimeEntry from "./pages/PayrollTimeEntry";
+import PayrollTaxes from "./pages/PayrollTaxes";
+import PayrollReports from "./pages/PayrollReports";
+import PayrollSettings from "./pages/PayrollSettings";
+import EmployeeProfile from "./pages/EmployeeProfile";
+import EmployeeDocuments from "./pages/EmployeeDocuments";
+import EmployeeLicenses from "./pages/EmployeeLicenses";
+import EmployeeAnnouncements from "./pages/EmployeeAnnouncements";
+import EmployeePayroll from "./pages/EmployeePayroll";
+import EmployeeTaxes from "./pages/EmployeeTaxes";
+import EmployeeSettings from "./pages/EmployeeSettings";
 import Employees from "./pages/Employees";
 import EmployeeDetail from "./pages/EmployeeDetail";
 import Locations from "./pages/Locations";
@@ -39,12 +57,22 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
 const AppRoutes = () => {
   const { user } = useAuth();
 
+  // Determine redirect path based on user role
+  const getRedirectPath = () => {
+    if (!user) return "/login";
+    if (user.role === 'admin') return '/dashboard';
+    if (user.role === 'payroll') return '/payroll-dashboard';
+    return '/employee-dashboard';
+  };
+
   return (
     <Routes>
       <Route
         path="/login"
-        element={user ? <Navigate to="/dashboard" replace /> : <Login />}
+        element={user ? <Navigate to={getRedirectPath()} replace /> : <Login />}
       />
+      
+      {/* Admin Portal Routes */}
       <Route
         path="/"
         element={
@@ -53,7 +81,7 @@ const AppRoutes = () => {
           </ProtectedRoute>
         }
       >
-        <Route index element={<Navigate to="/dashboard" replace />} />
+        <Route index element={<Navigate to={getRedirectPath()} replace />} />
         <Route path="dashboard" element={<Dashboard />} />
         <Route path="employees" element={<Employees />} />
         <Route path="employees/:id" element={<EmployeeDetail />} />
@@ -62,6 +90,185 @@ const AppRoutes = () => {
         <Route path="licenses" element={<Licenses />} />
         <Route path="settings" element={<Settings />} />
       </Route>
+
+      {/* Payroll Portal Routes */}
+      <Route
+        path="/payroll-dashboard"
+        element={
+          <ProtectedRoute>
+            <PayrollLayout />
+          </ProtectedRoute>
+        }
+      >
+        <Route index element={<PayrollDashboard />} />
+      </Route>
+
+      <Route
+        path="/payroll-run"
+        element={
+          <ProtectedRoute>
+            <PayrollLayout />
+          </ProtectedRoute>
+        }
+      >
+        <Route index element={<RunPayroll />} />
+      </Route>
+
+      <Route
+        path="/payroll-employees"
+        element={
+          <ProtectedRoute>
+            <PayrollLayout />
+          </ProtectedRoute>
+        }
+      >
+        <Route index element={<PayrollEmployees />} />
+      </Route>
+
+      <Route
+        path="/payroll-paystubs"
+        element={
+          <ProtectedRoute>
+            <PayrollLayout />
+          </ProtectedRoute>
+        }
+      >
+        <Route index element={<PayrollPayStubs />} />
+      </Route>
+
+      <Route
+        path="/payroll-timeentry"
+        element={
+          <ProtectedRoute>
+            <PayrollLayout />
+          </ProtectedRoute>
+        }
+      >
+        <Route index element={<PayrollTimeEntry />} />
+      </Route>
+
+      <Route
+        path="/payroll-taxes"
+        element={
+          <ProtectedRoute>
+            <PayrollLayout />
+          </ProtectedRoute>
+        }
+      >
+        <Route index element={<PayrollTaxes />} />
+      </Route>
+
+      <Route
+        path="/payroll-reports"
+        element={
+          <ProtectedRoute>
+            <PayrollLayout />
+          </ProtectedRoute>
+        }
+      >
+        <Route index element={<PayrollReports />} />
+      </Route>
+
+      <Route
+        path="/payroll-settings"
+        element={
+          <ProtectedRoute>
+            <PayrollLayout />
+          </ProtectedRoute>
+        }
+      >
+        <Route index element={<PayrollSettings />} />
+      </Route>
+
+      {/* Employee Portal Routes */}
+      <Route
+        path="/employee-dashboard"
+        element={
+          <ProtectedRoute>
+            <EmployeeLayout />
+          </ProtectedRoute>
+        }
+      >
+        <Route index element={<EmployeeDashboard />} />
+      </Route>
+
+      <Route
+        path="/employee-profile"
+        element={
+          <ProtectedRoute>
+            <EmployeeLayout />
+          </ProtectedRoute>
+        }
+      >
+        <Route index element={<EmployeeProfile />} />
+      </Route>
+
+      <Route
+        path="/employee-documents"
+        element={
+          <ProtectedRoute>
+            <EmployeeLayout />
+          </ProtectedRoute>
+        }
+      >
+        <Route index element={<EmployeeDocuments />} />
+      </Route>
+
+      <Route
+        path="/employee-licenses"
+        element={
+          <ProtectedRoute>
+            <EmployeeLayout />
+          </ProtectedRoute>
+        }
+      >
+        <Route index element={<EmployeeLicenses />} />
+      </Route>
+
+      <Route
+        path="/employee-announcements"
+        element={
+          <ProtectedRoute>
+            <EmployeeLayout />
+          </ProtectedRoute>
+        }
+      >
+        <Route index element={<EmployeeAnnouncements />} />
+      </Route>
+
+      <Route
+        path="/employee-payroll"
+        element={
+          <ProtectedRoute>
+            <EmployeeLayout />
+          </ProtectedRoute>
+        }
+      >
+        <Route index element={<EmployeePayroll />} />
+      </Route>
+
+      <Route
+        path="/employee-taxes"
+        element={
+          <ProtectedRoute>
+            <EmployeeLayout />
+          </ProtectedRoute>
+        }
+      >
+        <Route index element={<EmployeeTaxes />} />
+      </Route>
+
+      <Route
+        path="/employee-settings"
+        element={
+          <ProtectedRoute>
+            <EmployeeLayout />
+          </ProtectedRoute>
+        }
+      >
+        <Route index element={<EmployeeSettings />} />
+      </Route>
+
       <Route path="*" element={<NotFound />} />
     </Routes>
   );

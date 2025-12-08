@@ -6,18 +6,18 @@ interface StatusBadgeProps {
 }
 
 const statusStyles = {
-  active: 'bg-success/10 text-success border-success/20',
-  inactive: 'bg-muted text-muted-foreground border-border',
-  valid: 'bg-success/10 text-success border-success/20',
-  expiring: 'bg-warning/10 text-warning border-warning/20',
-  expired: 'bg-destructive/10 text-destructive border-destructive/20',
+  active: 'bg-green-100 text-green-800 font-semibold',
+  inactive: 'bg-gray-100 text-gray-800 font-semibold',
+  valid: 'bg-green-100 text-green-800 font-semibold',
+  expiring: 'bg-amber-100 text-amber-800 font-semibold',
+  expired: 'bg-red-100 text-red-800 font-semibold',
 };
 
 export const StatusBadge = ({ status, children }: StatusBadgeProps) => {
   return (
     <span
       className={cn(
-        'inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-medium',
+        'inline-flex items-center rounded-full px-3 py-1 text-xs font-medium',
         statusStyles[status]
       )}
     >

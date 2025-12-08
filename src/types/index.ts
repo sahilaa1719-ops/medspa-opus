@@ -73,4 +73,12 @@ export type DocumentType =
   | 'Insurance'
   | 'Certification'
   | 'Policy'
-  | 'Other';
+  | 'Other'
+  | 'Employment Contract'
+  | 'Medical License'
+  | 'Professional License Copy'
+  | 'Government ID Copy'
+  | 'Insurance Documents'
+  | 'Background Check'
+  | 'Certifications'
+  | 'Other Documents';

@@ -30,11 +30,12 @@ import { EmployeeFormModal } from '@/components/employees/EmployeeFormModal';
 
 const Employees = () => {
   const navigate = useNavigate();
-  const { employees, locations, deleteEmployee } = useData();
+  const { employees, locations, deleteEmployee, getEmployeeDeletionInfo } = useData();
   const [search, setSearch] = useState('');
   const [locationFilter, setLocationFilter] = useState('all');
   const [statusFilter, setStatusFilter] = useState('all');
   const [deleteId, setDeleteId] = useState<string | null>(null);
+  const [deletionInfo, setDeletionInfo] = useState<{ employee?: any; documentCount: number; licenseCount: number } | null>(null);
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingEmployee, setEditingEmployee] = useState<string | null>(null);
 
@@ -55,11 +56,19 @@ const Employees = () => {
     return matchesSearch && matchesLocation && matchesStatus;
   });
 
+  const handleDeleteClick = (id: string) => {
+    const info = getEmployeeDeletionInfo(id);
+    setDeletionInfo(info);
+    setDeleteId(id);
+  };
+
   const handleDelete = () => {
-    if (deleteId) {
-      deleteEmployee(deleteId);
-      toast.success('Employee deleted successfully');
+    if (deleteId && deletionInfo) {
+      const result = deleteEmployee(deleteId);
+      const message = `Employee deleted successfully. Also deleted ${result.deletedDocuments} document(s) and ${result.deletedLicenses} license(s).`;
+      toast.success(message);
       setDeleteId(null);
+      setDeletionInfo(null);
     }
   };
 
@@ -77,7 +86,7 @@ const Employees = () => {
     <div className="min-h-screen">
       <Header title="Employees" />
 
-      <div className="p-6">
+      <div className="p-4 lg:p-6">
         {/* Filters */}
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex flex-1 gap-4">
@@ -125,12 +134,12 @@ const Employees = () => {
           {filteredEmployees.map((employee) => (
             <div
               key={employee.id}
-              className="rounded-xl border border-border bg-card p-5 shadow-sm transition-shadow hover:shadow-md"
+              className="rounded-lg border border-[#E5E7EB] bg-white p-6 shadow-sm transition-shadow hover:shadow-sm"
             >
               <div className="flex items-start gap-4">
                 <Avatar className="h-14 w-14">
                   <AvatarImage src={employee.photoUrl} alt={employee.fullName} />
-                  <AvatarFallback className="text-lg">
+                  <AvatarFallback className="bg-gray-100 text-gray-700 text-lg">
                     {employee.fullName.split(' ').map((n) => n[0]).join('')}
                   </AvatarFallback>
                 </Avatar>
@@ -178,7 +187,7 @@ const Employees = () => {
                 <Button
                   variant="ghost"
                   size="sm"
-                  onClick={() => setDeleteId(employee.id)}
+                  onClick={() => handleDeleteClick(employee.id)}
                   className="text-destructive hover:text-destructive"
                 >
                   <Trash2 className="h-4 w-4" />
@@ -196,18 +205,35 @@ const Employees = () => {
       </div>
 
       {/* Delete Confirmation */}
-      <AlertDialog open={!!deleteId} onOpenChange={() => setDeleteId(null)}>
+      <AlertDialog open={!!deleteId} onOpenChange={() => {
+        setDeleteId(null);
+        setDeletionInfo(null);
+      }}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Delete Employee</AlertDialogTitle>
             <AlertDialogDescription>
-              Are you sure you want to delete this employee? This will also delete all their documents and licenses. This action cannot be undone.
+              {deletionInfo ? (
+                <>
+                  Are you sure you want to delete <strong>{deletionInfo.employee?.fullName}</strong>?
+                  <br /><br />
+                  This will also permanently delete:
+                  <ul className="mt-2 ml-4 list-disc">
+                    <li><strong>{deletionInfo.documentCount}</strong> document(s)</li>
+                    <li><strong>{deletionInfo.licenseCount}</strong> license(s)</li>
+                  </ul>
+                  <br />
+                  This action cannot be undone.
+                </>
+              ) : (
+                "Are you sure you want to delete this employee? This action cannot be undone."
+              )}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction onClick={handleDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
-              Delete
+              Delete Employee
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

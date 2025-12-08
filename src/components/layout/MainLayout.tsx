@@ -5,7 +5,7 @@ export const MainLayout = () => {
   return (
     <div className="min-h-screen bg-background">
       <Sidebar />
-      <main className="ml-64">
+      <main className="lg:ml-64">
         <Outlet />
       </main>
     </div>

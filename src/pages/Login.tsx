@@ -21,10 +21,18 @@ const Login = () => {
     setIsLoading(true);
 
     try {
-      const success = await login(email, password);
-      if (success) {
+      const result = await login(email, password);
+      if (result.success && result.role) {
         toast.success('Welcome back!');
-        navigate('/dashboard');
+        
+        // Redirect based on user role
+        if (result.role === 'admin') {
+          navigate('/dashboard'); // Admin portal
+        } else if (result.role === 'payroll') {
+          navigate('/payroll-dashboard'); // Payroll portal
+        } else if (result.role === 'employee') {
+          navigate('/employee-dashboard'); // Employee portal
+        }
       } else {
         toast.error('Invalid email or password');
       }
@@ -38,11 +46,11 @@ const Login = () => {
   return (
     <div className="flex min-h-screen items-center justify-center bg-background px-4">
       <div className="w-full max-w-md">
-        <div className="rounded-2xl border border-border bg-card p-8 shadow-lg">
+        <div className="rounded-lg border border-[#E5E7EB] bg-white p-8 shadow-sm">
           {/* Logo */}
           <div className="mb-8 flex flex-col items-center">
-            <div className="flex h-14 w-14 items-center justify-center rounded-xl bg-primary">
-              <Sparkles className="h-7 w-7 text-primary-foreground" />
+            <div className="flex h-14 w-14 items-center justify-center rounded-lg bg-gray-100">
+              <Sparkles className="h-7 w-7 text-[#6B7280]" />
             </div>
             <h1 className="mt-4 text-2xl font-bold text-card-foreground">MedSpa Pro</h1>
             <p className="mt-1 text-sm text-muted-foreground">Employee Management System</p>
@@ -99,13 +107,30 @@ const Login = () => {
 
           {/* Demo credentials */}
           <div className="mt-6 rounded-lg bg-muted/50 p-4">
-            <p className="text-xs font-medium text-muted-foreground">Demo Credentials:</p>
-            <p className="mt-1 text-sm text-card-foreground">
-              Email: <span className="font-mono">admin@medspa.com</span>
-            </p>
-            <p className="text-sm text-card-foreground">
-              Password: <span className="font-mono">admin123</span>
-            </p>
+            <p className="text-xs font-medium text-muted-foreground mb-2">Demo Credentials:</p>
+            
+            <div className="space-y-2">
+              <div>
+                <p className="text-xs font-medium text-muted-foreground">Admin Portal:</p>
+                <p className="text-sm text-card-foreground">
+                  <span className="font-mono">admin@medspa.com</span> / <span className="font-mono">admin123</span>
+                </p>
+              </div>
+              
+              <div>
+                <p className="text-xs font-medium text-muted-foreground">Payroll Portal:</p>
+                <p className="text-sm text-card-foreground">
+                  <span className="font-mono">payroll@medspa.com</span> / <span className="font-mono">payroll123</span>
+                </p>
+              </div>
+              
+              <div>
+                <p className="text-xs font-medium text-muted-foreground">Employee Portal:</p>
+                <p className="text-sm text-card-foreground">
+                  <span className="font-mono">employee@medspa.com</span> / <span className="font-mono">employee123</span>
+                </p>
+              </div>
+            </div>
           </div>
         </div>
       </div>

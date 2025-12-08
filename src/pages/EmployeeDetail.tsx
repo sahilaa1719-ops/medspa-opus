@@ -99,7 +99,7 @@ const EmployeeDetail = () => {
     <div className="min-h-screen">
       <Header title="Employee Details" />
 
-      <div className="p-6">
+      <div className="p-4 lg:p-6">
         {/* Back Button */}
         <Button
           variant="ghost"
@@ -116,7 +116,7 @@ const EmployeeDetail = () => {
             <div className="flex gap-6">
               <Avatar className="h-24 w-24">
                 <AvatarImage src={employee.photoUrl} alt={employee.fullName} />
-                <AvatarFallback className="text-2xl">
+                <AvatarFallback className="bg-gray-100 text-gray-700 text-2xl">
                   {employee.fullName.split(' ').map((n) => n[0]).join('')}
                 </AvatarFallback>
               </Avatar>
@@ -185,7 +185,7 @@ const EmployeeDetail = () => {
           </TabsList>
 
           <TabsContent value="overview" className="mt-6">
-            <div className="rounded-xl border border-border bg-card p-6 shadow-sm">
+            <div className="rounded-lg border border-[#E5E7EB] bg-white p-6 shadow-sm">
               <h3 className="mb-4 font-semibold text-card-foreground">Emergency Contact</h3>
               {employee.emergencyContactName ? (
                 <div className="grid gap-4 md:grid-cols-3">
@@ -223,7 +223,7 @@ const EmployeeDetail = () => {
             </div>
             
             {employeeDocuments.length === 0 ? (
-              <div className="rounded-xl border border-border bg-card p-12 text-center">
+              <div className="rounded-lg border border-[#E5E7EB] bg-white p-12 text-center">
                 <p className="text-muted-foreground">No documents uploaded</p>
               </div>
             ) : (
@@ -231,7 +231,7 @@ const EmployeeDetail = () => {
                 {employeeDocuments.map((doc) => (
                   <div
                     key={doc.id}
-                    className="flex items-center justify-between rounded-xl border border-border bg-card p-4 shadow-sm"
+                    className="flex items-center justify-between rounded-lg border border-[#E5E7EB] bg-white p-4 shadow-sm"
                   >
                     <div>
                       <p className="font-medium text-card-foreground">{doc.title}</p>
@@ -272,7 +272,7 @@ const EmployeeDetail = () => {
                   return (
                     <div
                       key={license.id}
-                      className="rounded-xl border border-border bg-card p-5 shadow-sm"
+                      className="rounded-lg border border-[#E5E7EB] bg-white p-6 shadow-sm"
                     >
                       <div className="flex items-start justify-between">
                         <div>

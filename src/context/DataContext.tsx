@@ -7,9 +7,9 @@ interface DataContextType {
   locations: Location[];
   licenses: License[];
   documents: Document[];
-  addEmployee: (employee: Omit<Employee, 'id' | 'createdAt'>) => void;
+  addEmployee: (employee: Omit<Employee, 'id' | 'createdAt'>) => string;
   updateEmployee: (id: string, employee: Partial<Employee>) => void;
-  deleteEmployee: (id: string) => void;
+  deleteEmployee: (id: string) => { deletedDocuments: number; deletedLicenses: number };
   addLocation: (location: Omit<Location, 'id' | 'createdAt'>) => void;
   updateLocation: (id: string, location: Partial<Location>) => void;
   deleteLocation: (id: string) => void;
@@ -18,6 +18,10 @@ interface DataContextType {
   deleteLicense: (id: string) => void;
   addDocument: (document: Omit<Document, 'id' | 'uploadedAt'>) => void;
   deleteDocument: (id: string) => void;
+  getEmployeeDocuments: (employeeId: string) => Document[];
+  getEmployeeLicenses: (employeeId: string) => License[];
+  getEmployeeById: (id: string) => Employee | undefined;
+  getEmployeeDeletionInfo: (id: string) => { employee: Employee | undefined; documentCount: number; licenseCount: number };
 }
 
 const DataContext = createContext<DataContextType | undefined>(undefined);
@@ -73,6 +77,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       createdAt: new Date(),
     };
     setEmployees((prev) => [...prev, newEmployee]);
+    return newEmployee.id;
   };
 
   const updateEmployee = (id: string, employee: Partial<Employee>) => {
@@ -82,9 +87,19 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const deleteEmployee = (id: string) => {
+    // Count items to be deleted for confirmation message
+    const employeeDocuments = documents.filter((doc) => doc.employeeId === id);
+    const employeeLicenses = licenses.filter((lic) => lic.employeeId === id);
+    
+    // Perform cascade delete
     setEmployees((prev) => prev.filter((emp) => emp.id !== id));
     setLicenses((prev) => prev.filter((lic) => lic.employeeId !== id));
     setDocuments((prev) => prev.filter((doc) => doc.employeeId !== id));
+    
+    return {
+      deletedDocuments: employeeDocuments.length,
+      deletedLicenses: employeeLicenses.length,
+    };
   };
 
   const addLocation = (location: Omit<Location, 'id' | 'createdAt'>) => {
@@ -138,6 +153,30 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setDocuments((prev) => prev.filter((doc) => doc.id !== id));
   };
 
+  const getEmployeeDocuments = (employeeId: string) => {
+    return documents.filter((doc) => doc.employeeId === employeeId);
+  };
+
+  const getEmployeeLicenses = (employeeId: string) => {
+    return licenses.filter((lic) => lic.employeeId === employeeId);
+  };
+
+  const getEmployeeById = (id: string) => {
+    return employees.find((emp) => emp.id === id);
+  };
+
+  const getEmployeeDeletionInfo = (id: string) => {
+    const employee = getEmployeeById(id);
+    const employeeDocuments = getEmployeeDocuments(id);
+    const employeeLicenses = getEmployeeLicenses(id);
+
+    return {
+      employee,
+      documentCount: employeeDocuments.length,
+      licenseCount: employeeLicenses.length,
+    };
+  };
+
   return (
     <DataContext.Provider
       value={{
@@ -156,6 +195,10 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         deleteLicense,
         addDocument,
         deleteDocument,
+        getEmployeeDocuments,
+        getEmployeeLicenses,
+        getEmployeeById,
+        getEmployeeDeletionInfo,
       }}
     >
       {children}

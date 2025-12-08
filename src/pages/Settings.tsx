@@ -20,7 +20,7 @@ const Settings = () => {
     <div className="min-h-screen">
       <Header title="Settings" />
 
-      <div className="p-6">
+      <div className="p-4 lg:p-6">
         <div className="max-w-2xl space-y-6">
           {/* Profile Settings */}
           <div className="rounded-xl border border-border bg-card p-6 shadow-sm">
@@ -42,8 +42,8 @@ const Settings = () => {
           </div>
 
           {/* Data Management */}
-          <div className="rounded-xl border border-border bg-card p-6 shadow-sm">
-            <h2 className="text-lg font-semibold text-card-foreground">Data Management</h2>
+          <div className="rounded-lg border border-[#E5E7EB] bg-white p-6 shadow-sm">
+            <h2 className="mb-4 text-lg font-semibold text-card-foreground">Data Management</h2>
             <p className="mt-1 text-sm text-muted-foreground">
               Manage your application data
             </p>
