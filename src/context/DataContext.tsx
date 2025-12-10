@@ -77,7 +77,10 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, []);
 
   const fetchEmployees = async () => {
-    const { data, error } = await supabase.from('employees').select('*').order('created_at', { ascending: false });
+    const { data, error } = await supabase
+      .from('employees')
+      .select('*')
+      .order('created_at', { ascending: false });
     if (!error && data) {
       setEmployees(data.map(emp => ({
         ...emp,

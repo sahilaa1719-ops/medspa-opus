@@ -103,16 +103,13 @@ const Dashboard = () => {
                 upcomingExpirations.map((license) => {
                   const employee = getEmployeeById(license.employeeId);
                   const status = getLicenseStatus(new Date(license.expiryDate));
-                  const location = employee?.locationIds[0] 
-                    ? getLocationById(employee.locationIds[0]) 
-                    : null;
 
                   return (
                     <div key={license.id} className="flex items-center gap-4">
                       <Avatar className="h-10 w-10">
                         <AvatarImage src={employee?.photoUrl} alt={employee?.fullName} />
                         <AvatarFallback className="bg-gray-100 text-gray-700">
-                          {employee?.fullName.split(' ').map((n) => n[0]).join('')}
+                          {employee?.fullName?.split(' ').map((n) => n[0]).join('') || 'NA'}
                         </AvatarFallback>
                       </Avatar>
                       <div className="flex-1 min-w-0">
@@ -120,7 +117,7 @@ const Dashboard = () => {
                           {employee?.fullName}
                         </p>
                         <p className="text-xs text-muted-foreground">
-                          {license.licenseType} • {location?.name || 'N/A'}
+                          {license.licenseType} • {employee?.position || 'N/A'}
                         </p>
                       </div>
                       <div className="text-right">
