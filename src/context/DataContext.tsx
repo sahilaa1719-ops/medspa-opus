@@ -122,25 +122,22 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const { data, error } = await supabase
       .from('employees')
       .insert([{
-        first_name: employee.firstName,
-        last_name: employee.lastName,
+        full_name: employee.fullName,
         email: employee.email,
-        phone: employee.phone,
+        phone: employee.phone || '',
         position: employee.position,
-        department: employee.department,
-        location_id: employee.locationId,
         hire_date: employee.hireDate,
+        photo_url: employee.photoUrl,
         status: employee.status,
-        salary: employee.salary,
-        employee_type: employee.employeeType,
-        emergency_contact: employee.emergencyContact,
-        emergency_phone: employee.emergencyPhone,
-        address: employee.address,
-        city: employee.city,
-        state: employee.state,
-        zip_code: employee.zipCode,
-        date_of_birth: employee.dateOfBirth,
-        ssn: employee.ssn
+        emergency_contact_name: employee.emergencyContactName,
+        emergency_contact_phone: employee.emergencyContactPhone,
+        emergency_contact_relationship: employee.emergencyContactRelationship,
+        employment_type: employee.employeeType,
+        hourly_rate: employee.hourlyRate,
+        overtime_rate: employee.overtimeRate,
+        annual_salary: employee.annualSalary,
+        pay_frequency: employee.payFrequency,
+        bank_account_last4: employee.bankAccountLast4
       }])
       .select()
       .single();
@@ -156,25 +153,22 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const updateEmployee = async (id: string, employee: Partial<Employee>) => {
     const updateData: any = {};
-    if (employee.firstName !== undefined) updateData.first_name = employee.firstName;
-    if (employee.lastName !== undefined) updateData.last_name = employee.lastName;
+    if (employee.fullName !== undefined) updateData.full_name = employee.fullName;
     if (employee.email !== undefined) updateData.email = employee.email;
     if (employee.phone !== undefined) updateData.phone = employee.phone;
     if (employee.position !== undefined) updateData.position = employee.position;
-    if (employee.department !== undefined) updateData.department = employee.department;
-    if (employee.locationId !== undefined) updateData.location_id = employee.locationId;
     if (employee.hireDate !== undefined) updateData.hire_date = employee.hireDate;
+    if (employee.photoUrl !== undefined) updateData.photo_url = employee.photoUrl;
     if (employee.status !== undefined) updateData.status = employee.status;
-    if (employee.salary !== undefined) updateData.salary = employee.salary;
-    if (employee.employeeType !== undefined) updateData.employee_type = employee.employeeType;
-    if (employee.emergencyContact !== undefined) updateData.emergency_contact = employee.emergencyContact;
-    if (employee.emergencyPhone !== undefined) updateData.emergency_phone = employee.emergencyPhone;
-    if (employee.address !== undefined) updateData.address = employee.address;
-    if (employee.city !== undefined) updateData.city = employee.city;
-    if (employee.state !== undefined) updateData.state = employee.state;
-    if (employee.zipCode !== undefined) updateData.zip_code = employee.zipCode;
-    if (employee.dateOfBirth !== undefined) updateData.date_of_birth = employee.dateOfBirth;
-    if (employee.ssn !== undefined) updateData.ssn = employee.ssn;
+    if (employee.emergencyContactName !== undefined) updateData.emergency_contact_name = employee.emergencyContactName;
+    if (employee.emergencyContactPhone !== undefined) updateData.emergency_contact_phone = employee.emergencyContactPhone;
+    if (employee.emergencyContactRelationship !== undefined) updateData.emergency_contact_relationship = employee.emergencyContactRelationship;
+    if (employee.employeeType !== undefined) updateData.employment_type = employee.employeeType;
+    if (employee.hourlyRate !== undefined) updateData.hourly_rate = employee.hourlyRate;
+    if (employee.overtimeRate !== undefined) updateData.overtime_rate = employee.overtimeRate;
+    if (employee.annualSalary !== undefined) updateData.annual_salary = employee.annualSalary;
+    if (employee.payFrequency !== undefined) updateData.pay_frequency = employee.payFrequency;
+    if (employee.bankAccountLast4 !== undefined) updateData.bank_account_last4 = employee.bankAccountLast4;
 
     const { error } = await supabase
       .from('employees')

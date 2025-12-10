@@ -18,7 +18,13 @@ export interface Employee {
   emergencyContactName: string;
   emergencyContactPhone: string;
   emergencyContactRelationship: string;
-  locationIds: string[];
+  employeeType?: 'full-time' | 'part-time' | 'contract';
+  hourlyRate?: number;
+  overtimeRate?: number;
+  annualSalary?: number;
+  payFrequency?: 'hourly' | 'weekly' | 'bi-weekly' | 'monthly' | 'annually';
+  bankAccountLast4?: string;
+  locationIds?: string[];
   createdAt: Date;
 }
 
