@@ -66,21 +66,26 @@ export const LocationFormModal = ({
     }
   }, [location, reset]);
 
-  const onSubmit = (data: FormData) => {
+  const onSubmit = async (data: FormData) => {
     const locationData = {
       name: data.name,
       address: data.address || '',
       phone: data.phone || '',
     };
 
-    if (locationId) {
-      updateLocation(locationId, locationData);
-      toast.success('Location updated successfully');
-    } else {
-      addLocation(locationData);
-      toast.success('Location added successfully');
+    try {
+      if (locationId) {
+        await updateLocation(locationId, locationData);
+        toast.success('Location updated successfully');
+      } else {
+        await addLocation(locationData);
+        toast.success('Location added successfully');
+      }
+      onClose();
+    } catch (error) {
+      toast.error('Failed to save location');
+      console.error('Error saving location:', error);
     }
-    onClose();
   };
 
   return (

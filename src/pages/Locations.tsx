@@ -26,9 +26,9 @@ const Locations = () => {
     return employees.filter((e) => e.locationIds.includes(locationId)).length;
   };
 
-  const handleDelete = () => {
+  const handleDelete = async () => {
     if (deleteId) {
-      deleteLocation(deleteId);
+      await deleteLocation(deleteId);
       toast.success('Location deleted successfully');
       setDeleteId(null);
     }

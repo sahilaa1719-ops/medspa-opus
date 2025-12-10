@@ -63,23 +63,23 @@ const EmployeeDetail = () => {
     return `${years} years, ${months} months`;
   };
 
-  const handleDeleteEmployee = () => {
-    deleteEmployee(employee.id);
+  const handleDeleteEmployee = async () => {
+    await deleteEmployee(employee.id);
     toast.success('Employee deleted successfully');
     navigate('/employees');
   };
 
-  const handleDeleteLicense = () => {
+  const handleDeleteLicense = async () => {
     if (deleteLicenseId) {
-      deleteLicense(deleteLicenseId);
+      await deleteLicense(deleteLicenseId);
       toast.success('License deleted successfully');
       setDeleteLicenseId(null);
     }
   };
 
-  const handleDeleteDocument = () => {
+  const handleDeleteDocument = async () => {
     if (deleteDocumentId) {
-      deleteDocument(deleteDocumentId);
+      await deleteDocument(deleteDocumentId);
       toast.success('Document deleted successfully');
       setDeleteDocumentId(null);
     }

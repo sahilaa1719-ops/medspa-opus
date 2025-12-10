@@ -62,9 +62,9 @@ const Employees = () => {
     setDeleteId(id);
   };
 
-  const handleDelete = () => {
+  const handleDelete = async () => {
     if (deleteId && deletionInfo) {
-      const result = deleteEmployee(deleteId);
+      const result = await deleteEmployee(deleteId);
       const message = `Employee deleted successfully. Also deleted ${result.deletedDocuments} document(s) and ${result.deletedLicenses} license(s).`;
       toast.success(message);
       setDeleteId(null);

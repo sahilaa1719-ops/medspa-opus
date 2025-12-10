@@ -411,12 +411,12 @@ export const EmployeeFormModal = ({ open, onClose, employeeId }: EmployeeFormMod
       let newEmployeeId: string;
       
       if (employeeId) {
-        updateEmployee(employeeId, employeeData);
+        await updateEmployee(employeeId, employeeData);
         newEmployeeId = employeeId;
         toast.success('Employee updated successfully');
       } else {
         // For new employees, add the employee and get the generated ID
-        newEmployeeId = addEmployee(employeeData);
+        newEmployeeId = await addEmployee(employeeData);
       }
 
       // Handle documents
@@ -431,7 +431,7 @@ export const EmployeeFormModal = ({ open, onClose, employeeId }: EmployeeFormMod
             fileName: doc.file.name,
             notes: '',
           };
-          addDocument(documentData);
+          await addDocument(documentData);
         }
         // Existing documents don't need to be re-added, they're already in the system
       }
@@ -448,7 +448,7 @@ export const EmployeeFormModal = ({ open, onClose, employeeId }: EmployeeFormMod
             expiryDate: new Date(license.expiryDate),
             documentUrl: '', // In real app, upload file and get URL
           };
-          addLicense(licenseData);
+          await addLicense(licenseData);
         }
         // Existing licenses don't need to be re-added, they're already in the system
       }

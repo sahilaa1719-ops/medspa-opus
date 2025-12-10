@@ -31,9 +31,9 @@ const Licenses = () => {
 
   const getEmployeeById = (id: string) => employees.find((e) => e.id === id);
 
-  const handleDelete = () => {
+  const handleDelete = async () => {
     if (deleteId) {
-      deleteLicense(deleteId);
+      await deleteLicense(deleteId);
       toast.success('License deleted successfully');
       setDeleteId(null);
     }

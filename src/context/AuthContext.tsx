@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
+import { supabase } from '../lib/supabase';
 
 interface User {
   email: string;
@@ -20,53 +21,93 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    const storedUser = localStorage.getItem('medspa_user');
-    if (storedUser) {
-      const parsedUser = JSON.parse(storedUser);
-      
-      // Handle backward compatibility for users without role
-      if (!parsedUser.role) {
-        // Default existing users to admin role (preserves existing behavior)
-        parsedUser.role = 'admin';
-        localStorage.setItem('medspa_user', JSON.stringify(parsedUser));
+    // Check for existing session
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session?.user) {
+        // Fetch user details from users table
+        supabase
+          .from('users')
+          .select('*')
+          .eq('email', session.user.email)
+          .single()
+          .then(({ data, error }) => {
+            if (data && !error) {
+              setUser({
+                email: data.email,
+                name: data.name,
+                role: data.role
+              });
+            }
+          });
       }
-      
-      setUser(parsedUser);
-    }
-    setIsLoading(false);
+      setIsLoading(false);
+    });
+
+    // Listen for auth changes
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (session?.user) {
+        supabase
+          .from('users')
+          .select('*')
+          .eq('email', session.user.email)
+          .single()
+          .then(({ data, error }) => {
+            if (data && !error) {
+              setUser({
+                email: data.email,
+                name: data.name,
+                role: data.role
+              });
+            }
+          });
+      } else {
+        setUser(null);
+      }
+    });
+
+    return () => subscription.unsubscribe();
   }, []);
 
   const login = async (email: string, password: string): Promise<{ success: boolean; role?: 'admin' | 'employee' | 'payroll' }> => {
-    // Demo credentials for admin
-    if (email === 'admin@medspa.com' && password === 'admin123') {
-      const userData = { email, name: 'Admin User', role: 'admin' as const };
-      setUser(userData);
-      localStorage.setItem('medspa_user', JSON.stringify(userData));
-      return { success: true, role: 'admin' };
+    try {
+      // Sign in with Supabase Auth
+      const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
+
+      if (authError || !authData.user) {
+        return { success: false };
+      }
+
+      // Fetch user details from users table
+      const { data: userData, error: userError } = await supabase
+        .from('users')
+        .select('*')
+        .eq('email', email)
+        .single();
+
+      if (userError || !userData) {
+        await supabase.auth.signOut();
+        return { success: false };
+      }
+
+      setUser({
+        email: userData.email,
+        name: userData.name,
+        role: userData.role
+      });
+
+      return { success: true, role: userData.role };
+    } catch (error) {
+      console.error('Login error:', error);
+      return { success: false };
     }
-    
-    // Demo credentials for payroll manager
-    if (email === 'payroll@medspa.com' && password === 'payroll123') {
-      const userData = { email, name: 'Payroll Manager', role: 'payroll' as const };
-      setUser(userData);
-      localStorage.setItem('medspa_user', JSON.stringify(userData));
-      return { success: true, role: 'payroll' };
-    }
-    
-    // Demo credentials for employee
-    if (email === 'employee@medspa.com' && password === 'employee123') {
-      const userData = { email, name: 'Employee User', role: 'employee' as const };
-      setUser(userData);
-      localStorage.setItem('medspa_user', JSON.stringify(userData));
-      return { success: true, role: 'employee' };
-    }
-    
-    return { success: false };
   };
 
-  const logout = () => {
+  const logout = async () => {
+    await supabase.auth.signOut();
     setUser(null);
-    localStorage.removeItem('medspa_user');
   };
 
   return (
