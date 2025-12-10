@@ -8,6 +8,7 @@ CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 CREATE TABLE IF NOT EXISTS users (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   email TEXT UNIQUE NOT NULL,
+  password_hash TEXT NOT NULL,
   name TEXT NOT NULL,
   role TEXT NOT NULL CHECK (role IN ('admin', 'employee', 'payroll')),
   created_at TIMESTAMPTZ DEFAULT NOW()
@@ -204,12 +205,11 @@ CREATE POLICY "Allow all operations on payroll_reports" ON payroll_reports
 CREATE POLICY "Allow all operations on scheduled_reports" ON scheduled_reports
   FOR ALL USING (auth.role() = 'authenticated');
 
--- Insert sample users (you'll need to create these in Supabase Auth first)
--- Then insert their profiles in the users table
-INSERT INTO users (email, name, role) VALUES
-  ('admin@medspa.com', 'Admin User', 'admin'),
-  ('payroll@medspa.com', 'Payroll Manager', 'payroll'),
-  ('employee@medspa.com', 'Employee User', 'employee')
+-- Insert sample users with passwords (using plain text for demo - in production use hashed passwords)
+INSERT INTO users (email, password_hash, name, role) VALUES
+  ('admin@medspa.com', 'admin123', 'Admin User', 'admin'),
+  ('payroll@medspa.com', 'payroll123', 'Payroll Manager', 'payroll'),
+  ('employee@medspa.com', 'employee123', 'Employee User', 'employee')
 ON CONFLICT (email) DO NOTHING;
 
 -- Insert sample location

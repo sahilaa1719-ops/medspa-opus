@@ -21,31 +21,15 @@ This will create all the necessary tables:
 - `payroll_reports` - Generated reports
 - `scheduled_reports` - Automated report schedules
 
-## Step 2: Create Authentication Users
+## Step 2: Verify Sample Users
 
-1. In Supabase dashboard, go to **Authentication** > **Users**
-2. Click **Add User** > **Create new user**
-3. Create three users:
+The SQL schema automatically creates three sample users in the `users` table:
 
-   **Admin User:**
-   - Email: `admin@medspa.com`
-   - Password: `admin123`
-   - Confirm password: `admin123`
-   - Auto Confirm User: **Yes**
-   
-   **Payroll Manager:**
-   - Email: `payroll@medspa.com`
-   - Password: `payroll123`
-   - Confirm password: `payroll123`
-   - Auto Confirm User: **Yes**
-   
-   **Employee User:**
-   - Email: `employee@medspa.com`
-   - Password: `employee123`
-   - Confirm password: `employee123`
-   - Auto Confirm User: **Yes**
+- **Admin User:** `admin@medspa.com` / `admin123`
+- **Payroll Manager:** `payroll@medspa.com` / `payroll123`
+- **Employee User:** `employee@medspa.com` / `employee123`
 
-Note: The SQL schema already inserted these users into the `users` table, so they'll be linked automatically by email.
+No additional setup needed! The app uses simple table-based authentication (querying the `users` table directly) rather than Supabase Auth. This is perfect for a demo/MVP.
 
 ## Step 3: Load Sample Data (Optional)
 
@@ -95,10 +79,10 @@ This will add:
 ## What Changed in the Code
 
 ### AuthContext.tsx
-- Now uses `supabase.auth.signInWithPassword()` for authentication
-- Fetches user profile from `users` table after login
-- Listens for auth state changes with real-time subscriptions
-- `logout()` now calls `supabase.auth.signOut()`
+- Now uses simple table queries to authenticate users
+- Queries `users` table with `email` and `password_hash` fields
+- Stores user session in localStorage
+- No dependency on Supabase Auth - perfect for demo/MVP
 
 ### DataContext.tsx
 - All CRUD operations now use Supabase queries instead of localStorage
@@ -137,14 +121,14 @@ Currently, `file_url` fields store URLs as text. If you want to upload actual fi
 - Check Supabase project status in dashboard
 
 ### "Row Level Security" errors
-- Make sure you're logged in
-- Verify RLS policies were created properly
-- Check Authentication > Users shows your user as authenticated
+- RLS policies allow any authenticated query (using `auth.role() = 'authenticated'`)
+- Since we're not using Supabase Auth, you may need to adjust policies
+- For demo/MVP, you can disable RLS on tables if needed
 
 ### Login fails
-- Verify users were created in Authentication section
-- Check that emails match exactly
-- Ensure "Auto Confirm User" was enabled
+- Verify the `users` table has rows with correct email and password_hash
+- Check browser console for error messages
+- Passwords are stored in plain text (for demo only - hash in production!)
 
 ### Data not showing up
 - Open browser DevTools > Network tab
@@ -160,12 +144,15 @@ Currently, `file_url` fields store URLs as text. If you want to upload actual fi
 4. **Add data validation** - Server-side validation rules
 5. **Implement audit logs** - Track who changed what and when
 
-## API Key Security
+## Security Notes
 
-⚠️ **Important**: The anon key in `supabase.ts` is public and safe to expose in client-side code. However:
-- Never commit your Supabase **service role key** to Git
+⚠️ **Important for Demo/MVP**:
+- Passwords are stored in plain text in the `users` table - **DO NOT use in production!**
+- In production, use proper password hashing (bcrypt, argon2, etc.)
+- Consider migrating to Supabase Auth for production (built-in security features)
+- The anon key in `supabase.ts` is safe to expose in client-side code
 - Use environment variables for sensitive keys in production
-- Enable RLS policies to control data access
+- Current RLS policies are permissive - tighten them for production
 
 ## Support
 

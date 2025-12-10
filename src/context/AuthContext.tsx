@@ -21,82 +21,43 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    // Check for existing session
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session?.user) {
-        // Fetch user details from users table
-        supabase
-          .from('users')
-          .select('*')
-          .eq('email', session.user.email)
-          .single()
-          .then(({ data, error }) => {
-            if (data && !error) {
-              setUser({
-                email: data.email,
-                name: data.name,
-                role: data.role
-              });
-            }
-          });
+    // Check for existing session in localStorage
+    const storedUser = localStorage.getItem('medspa_user');
+    if (storedUser) {
+      try {
+        const parsedUser = JSON.parse(storedUser);
+        setUser(parsedUser);
+      } catch (error) {
+        console.error('Error parsing stored user:', error);
+        localStorage.removeItem('medspa_user');
       }
-      setIsLoading(false);
-    });
-
-    // Listen for auth changes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      if (session?.user) {
-        supabase
-          .from('users')
-          .select('*')
-          .eq('email', session.user.email)
-          .single()
-          .then(({ data, error }) => {
-            if (data && !error) {
-              setUser({
-                email: data.email,
-                name: data.name,
-                role: data.role
-              });
-            }
-          });
-      } else {
-        setUser(null);
-      }
-    });
-
-    return () => subscription.unsubscribe();
+    }
+    setIsLoading(false);
   }, []);
 
   const login = async (email: string, password: string): Promise<{ success: boolean; role?: 'admin' | 'employee' | 'payroll' }> => {
     try {
-      // Sign in with Supabase Auth
-      const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
-        email,
-        password,
-      });
-
-      if (authError || !authData.user) {
-        return { success: false };
-      }
-
-      // Fetch user details from users table
+      // Query the users table directly (simple table-based auth for demo/MVP)
       const { data: userData, error: userError } = await supabase
         .from('users')
         .select('*')
         .eq('email', email)
+        .eq('password_hash', password)
         .single();
 
       if (userError || !userData) {
-        await supabase.auth.signOut();
+        console.error('Login error:', userError);
         return { success: false };
       }
 
-      setUser({
+      const user: User = {
         email: userData.email,
         name: userData.name,
         role: userData.role
-      });
+      };
+
+      setUser(user);
+      localStorage.setItem('medspa_user', JSON.stringify(user));
 
       return { success: true, role: userData.role };
     } catch (error) {
@@ -105,9 +66,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  const logout = async () => {
-    await supabase.auth.signOut();
+  const logout = () => {
     setUser(null);
+    localStorage.removeItem('medspa_user');
   };
 
   return (
