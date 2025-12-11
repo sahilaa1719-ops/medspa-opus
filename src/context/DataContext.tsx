@@ -79,11 +79,37 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const fetchEmployees = async () => {
     const { data, error } = await supabase
       .from('employees')
-      .select('*')
+      .select(`
+        *,
+        employee_locations (
+          location_id,
+          locations (
+            id,
+            name
+          )
+        )
+      `)
       .order('created_at', { ascending: false });
     if (!error && data) {
       setEmployees(data.map(emp => ({
-        ...emp,
+        id: emp.id,
+        fullName: emp.full_name,
+        email: emp.email,
+        phone: emp.phone,
+        position: emp.position,
+        hireDate: new Date(emp.hire_date),
+        photoUrl: emp.photo_url,
+        status: emp.status,
+        emergencyContactName: emp.emergency_contact_name,
+        emergencyContactPhone: emp.emergency_contact_phone,
+        emergencyContactRelationship: emp.emergency_contact_relationship,
+        employeeType: emp.employment_type,
+        hourlyRate: emp.hourly_rate,
+        overtimeRate: emp.overtime_rate,
+        annualSalary: emp.annual_salary,
+        payFrequency: emp.pay_frequency,
+        bankAccountLast4: emp.bank_account_last4,
+        employee_locations: emp.employee_locations,
         createdAt: new Date(emp.created_at)
       })));
     }
@@ -115,7 +141,13 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const { data, error } = await supabase.from('documents').select('*').order('uploaded_at', { ascending: false });
     if (!error && data) {
       setDocuments(data.map(doc => ({
-        ...doc,
+        id: doc.id,
+        employeeId: doc.employee_id,
+        title: doc.title,
+        documentType: doc.type,
+        fileUrl: doc.file_url,
+        fileSize: doc.file_size,
+        uploadedBy: doc.uploaded_by,
         uploadedAt: new Date(doc.uploaded_at)
       })));
     }
@@ -150,6 +182,22 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       return '';
     }
 
+    // Handle location assignments if provided
+    if (employee.locationIds && employee.locationIds.length > 0) {
+      const locationLinks = employee.locationIds.map(locId => ({
+        employee_id: data.id,
+        location_id: locId
+      }));
+      
+      const { error: linkError } = await supabase
+        .from('employee_locations')
+        .insert(locationLinks);
+      
+      if (linkError) {
+        console.error('Error linking employee to locations:', linkError);
+      }
+    }
+
     await fetchEmployees();
     return data.id;
   };
@@ -181,6 +229,31 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (error) {
       console.error('Error updating employee:', error);
       return;
+    }
+
+    // Handle location assignments if provided
+    if (employee.locationIds !== undefined) {
+      // Delete existing location links
+      await supabase
+        .from('employee_locations')
+        .delete()
+        .eq('employee_id', id);
+      
+      // Insert new location links
+      if (employee.locationIds.length > 0) {
+        const locationLinks = employee.locationIds.map(locId => ({
+          employee_id: id,
+          location_id: locId
+        }));
+        
+        const { error: linkError } = await supabase
+          .from('employee_locations')
+          .insert(locationLinks);
+        
+        if (linkError) {
+          console.error('Error linking employee to locations:', linkError);
+        }
+      }
     }
 
     await fetchEmployees();

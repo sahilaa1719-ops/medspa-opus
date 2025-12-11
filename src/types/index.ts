@@ -24,7 +24,14 @@ export interface Employee {
   annualSalary?: number;
   payFrequency?: 'hourly' | 'weekly' | 'bi-weekly' | 'monthly' | 'annually';
   bankAccountLast4?: string;
-  locationIds?: string[];
+  locationIds?: string[]; // For form submission and backward compatibility
+  employee_locations?: Array<{ // From Supabase join
+    location_id: string;
+    locations?: {
+      id: string;
+      name: string;
+    };
+  }>;
   createdAt: Date;
 }
 
@@ -32,11 +39,13 @@ export interface Document {
   id: string;
   employeeId: string;
   title: string;
-  documentType: string;
-  fileUrl: string;
-  fileName: string;
-  notes: string;
-  uploadedAt: Date;
+  documentType: string; // Maps to 'type' in database
+  fileUrl: string; // Maps to 'file_url' in database
+  fileName?: string; // For display purposes
+  fileSize?: number; // Maps to 'file_size' in database
+  uploadedBy?: string; // Maps to 'uploaded_by' in database
+  notes?: string; // Not in current schema
+  uploadedAt: Date; // Maps to 'uploaded_at' in database
 }
 
 export interface License {

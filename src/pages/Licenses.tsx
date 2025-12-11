@@ -55,7 +55,7 @@ const Licenses = () => {
       
       // Location filter - check if employee is assigned to selected location
       const matchesLocation = selectedLocation === 'all' || 
-        (employee && employee.locationIds.includes(selectedLocation));
+        (employee && employee.employee_locations?.some(el => el.location_id === selectedLocation));
       
       return matchesSearch && matchesEmployee && matchesStatus && matchesLocation;
     });

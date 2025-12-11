@@ -1,6 +1,7 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Search, Plus, Eye, Pencil, Trash2 } from 'lucide-react';
+import { Search, Plus, Eye, Pencil, Trash2, Key, Copy } from 'lucide-react';
+import { supabase } from '@/lib/supabase';
 import { Header } from '@/components/layout/Header';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -30,16 +31,54 @@ import { EmployeeFormModal } from '@/components/employees/EmployeeFormModal';
 
 const Employees = () => {
   const navigate = useNavigate();
-  const { employees, locations, deleteEmployee, getEmployeeDeletionInfo } = useData();
+  const { employees, deleteEmployee, getEmployeeDeletionInfo } = useData();
   const [search, setSearch] = useState('');
-  const [locationFilter, setLocationFilter] = useState('all');
   const [statusFilter, setStatusFilter] = useState('all');
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [deletionInfo, setDeletionInfo] = useState<{ employee?: any; documentCount: number; licenseCount: number } | null>(null);
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingEmployee, setEditingEmployee] = useState<string | null>(null);
+  const [passwordModalOpen, setPasswordModalOpen] = useState(false);
+  const [selectedEmployeePassword, setSelectedEmployeePassword] = useState<{ name: string; email: string; password: string } | null>(null);
+  const [employeePasswords, setEmployeePasswords] = useState<Record<string, string>>({});
 
-  const getLocationById = (id: string) => locations.find((l) => l.id === id);
+  useEffect(() => {
+    fetchAllPasswords();
+  }, []);
+
+  const fetchAllPasswords = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('users')
+        .select('email, password_hash')
+        .eq('role', 'employee');
+      
+      if (error) throw error;
+      
+      const passwordMap: Record<string, string> = {};
+      data?.forEach(user => {
+        passwordMap[user.email] = user.password_hash;
+      });
+      setEmployeePasswords(passwordMap);
+    } catch (error) {
+      console.error('Error fetching passwords:', error);
+    }
+  };
+
+  const handleViewPassword = (employee: any) => {
+    const password = employeePasswords[employee.email] || 'Not found';
+    setSelectedEmployeePassword({
+      name: employee.fullName,
+      email: employee.email,
+      password: password
+    });
+    setPasswordModalOpen(true);
+  };
+
+  const copyToClipboard = (text: string) => {
+    navigator.clipboard.writeText(text);
+    toast.success('Copied to clipboard!');
+  };
 
   const filteredEmployees = employees.filter((employee) => {
     const matchesSearch =
@@ -47,13 +86,10 @@ const Employees = () => {
       employee.email.toLowerCase().includes(search.toLowerCase()) ||
       employee.position.toLowerCase().includes(search.toLowerCase());
 
-    const matchesLocation =
-      locationFilter === 'all' || employee.locationIds.includes(locationFilter);
-
     const matchesStatus =
       statusFilter === 'all' || employee.status === statusFilter;
 
-    return matchesSearch && matchesLocation && matchesStatus;
+    return matchesSearch && matchesStatus;
   });
 
   const handleDeleteClick = (id: string) => {
@@ -99,19 +135,6 @@ const Employees = () => {
                 className="pl-10"
               />
             </div>
-            <Select value={locationFilter} onValueChange={setLocationFilter}>
-              <SelectTrigger className="w-48">
-                <SelectValue placeholder="All Locations" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Locations</SelectItem>
-                {locations.map((location) => (
-                  <SelectItem key={location.id} value={location.id}>
-                    {location.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
             <Select value={statusFilter} onValueChange={setStatusFilter}>
               <SelectTrigger className="w-32">
                 <SelectValue placeholder="Status" />
@@ -148,20 +171,28 @@ const Employees = () => {
                     {employee.fullName}
                   </h3>
                   <p className="text-sm text-muted-foreground">{employee.position}</p>
+                  <p className="text-sm text-muted-foreground mt-1">{employee.email}</p>
                   <div className="mt-2 flex flex-wrap gap-1">
-                    {employee.locationIds.slice(0, 2).map((locId) => {
-                      const location = getLocationById(locId);
-                      return (
-                        <Badge key={locId} variant="secondary" className="text-xs">
-                          {location?.name || 'Unknown'}
+                    {(() => {
+                      const locationNames = employee.employee_locations
+                        ?.map(el => el.locations?.name)
+                        .filter(Boolean) || [];
+                      return locationNames.length > 0 ? (
+                        locationNames.slice(0, 2).map((name, idx) => (
+                          <Badge key={idx} variant="secondary" className="text-xs">
+                            {name}
+                          </Badge>
+                        ))
+                      ) : null;
+                    })()}
+                    {(() => {
+                      const locationCount = employee.employee_locations?.length || 0;
+                      return locationCount > 2 ? (
+                        <Badge variant="outline" className="text-xs">
+                          +{locationCount - 2}
                         </Badge>
-                      );
-                    })}
-                    {employee.locationIds.length > 2 && (
-                      <Badge variant="outline" className="text-xs">
-                        +{employee.locationIds.length - 2}
-                      </Badge>
-                    )}
+                      ) : null;
+                    })()}
                   </div>
                 </div>
                 <StatusBadge status={employee.status}>
@@ -174,13 +205,24 @@ const Employees = () => {
                   variant="ghost"
                   size="sm"
                   onClick={() => navigate(`/employees/${employee.id}`)}
+                  title="View Details"
                 >
                   <Eye className="h-4 w-4" />
                 </Button>
                 <Button
                   variant="ghost"
                   size="sm"
+                  onClick={() => handleViewPassword(employee)}
+                  title="View Password"
+                  className="text-blue-600 hover:text-blue-700"
+                >
+                  <Key className="h-4 w-4" />
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
                   onClick={() => handleEdit(employee.id)}
+                  title="Edit Employee"
                 >
                   <Pencil className="h-4 w-4" />
                 </Button>
@@ -189,6 +231,7 @@ const Employees = () => {
                   size="sm"
                   onClick={() => handleDeleteClick(employee.id)}
                   className="text-destructive hover:text-destructive"
+                  title="Delete Employee"
                 >
                   <Trash2 className="h-4 w-4" />
                 </Button>
@@ -234,6 +277,62 @@ const Employees = () => {
             <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction onClick={handleDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
               Delete Employee
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Password Modal */}
+      <AlertDialog open={passwordModalOpen} onOpenChange={setPasswordModalOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Employee Login Credentials</AlertDialogTitle>
+            <AlertDialogDescription>
+              {selectedEmployeePassword && (
+                <div className="space-y-4 mt-4">
+                  <div>
+                    <p className="text-sm font-semibold text-gray-700">Employee Name</p>
+                    <p className="text-base text-gray-900">{selectedEmployeePassword.name}</p>
+                  </div>
+                  
+                  <div>
+                    <p className="text-sm font-semibold text-gray-700">Email</p>
+                    <div className="flex items-center gap-2 mt-1">
+                      <code className="flex-1 bg-gray-100 px-3 py-2 rounded text-sm">
+                        {selectedEmployeePassword.email}
+                      </code>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => copyToClipboard(selectedEmployeePassword.email)}
+                      >
+                        <Copy className="h-3.5 w-3.5" />
+                      </Button>
+                    </div>
+                  </div>
+                  
+                  <div>
+                    <p className="text-sm font-semibold text-gray-700">Password</p>
+                    <div className="flex items-center gap-2 mt-1">
+                      <code className="flex-1 bg-gray-100 px-3 py-2 rounded text-sm font-mono">
+                        {selectedEmployeePassword.password}
+                      </code>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => copyToClipboard(selectedEmployeePassword.password)}
+                      >
+                        <Copy className="h-3.5 w-3.5" />
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogAction onClick={() => setPasswordModalOpen(false)}>
+              Close
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

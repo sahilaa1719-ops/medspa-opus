@@ -41,8 +41,9 @@ const EmployeeProfile = () => {
     emergencyContactRelationship: employee.emergencyContactRelationship,
   });
 
+  // Note: This page uses mock data. When connected to Supabase, use employee_locations join
   const assignedLocations = mockLocations.filter(loc => 
-    employee.locationIds.includes(loc.id)
+    employee.locationIds?.includes(loc.id)
   );
 
   const handleEditClick = () => {

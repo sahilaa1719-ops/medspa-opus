@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Sparkles, Loader2 } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
@@ -7,14 +7,41 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
 import { toast } from 'sonner';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
+import { supabase } from '@/lib/supabase';
 
 const Login = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [rememberMe, setRememberMe] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [forgotPasswordOpen, setForgotPasswordOpen] = useState(false);
+  const [forgotEmail, setForgotEmail] = useState('');
+  const [checkingEmail, setCheckingEmail] = useState(false);
   const { login } = useAuth();
   const navigate = useNavigate();
+
+  // Load saved credentials on component mount
+  useEffect(() => {
+    const savedEmail = localStorage.getItem('rememberedEmail');
+    const savedPassword = localStorage.getItem('rememberedPassword');
+    const wasRemembered = localStorage.getItem('rememberMe') === 'true';
+
+    if (wasRemembered && savedEmail && savedPassword) {
+      setEmail(savedEmail);
+      setPassword(savedPassword);
+      setRememberMe(true);
+    }
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -23,6 +50,17 @@ const Login = () => {
     try {
       const result = await login(email, password);
       if (result.success && result.role) {
+        // Save or clear credentials based on "Remember me" checkbox
+        if (rememberMe) {
+          localStorage.setItem('rememberedEmail', email);
+          localStorage.setItem('rememberedPassword', password);
+          localStorage.setItem('rememberMe', 'true');
+        } else {
+          localStorage.removeItem('rememberedEmail');
+          localStorage.removeItem('rememberedPassword');
+          localStorage.removeItem('rememberMe');
+        }
+
         toast.success('Welcome back!');
         
         // Redirect based on user role
@@ -40,6 +78,38 @@ const Login = () => {
       toast.error('An error occurred. Please try again.');
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const handleForgotPassword = async () => {
+    if (!forgotEmail) {
+      toast.error('Please enter your email address');
+      return;
+    }
+
+    setCheckingEmail(true);
+    try {
+      // Check if email exists in users table
+      const { data, error } = await supabase
+        .from('users')
+        .select('email, role')
+        .eq('email', forgotEmail)
+        .single();
+
+      if (error || !data) {
+        toast.error('Email not found in our system');
+      } else {
+        // Email exists, show contact admin message
+        toast.info('Please contact your administrator to reset your password', {
+          duration: 5000
+        });
+        setForgotPasswordOpen(false);
+        setForgotEmail('');
+      }
+    } catch (error) {
+      toast.error('An error occurred. Please try again.');
+    } finally {
+      setCheckingEmail(false);
     }
   };
 
@@ -82,15 +152,25 @@ const Login = () => {
               />
             </div>
 
-            <div className="flex items-center space-x-2">
-              <Checkbox
-                id="remember"
-                checked={rememberMe}
-                onCheckedChange={(checked) => setRememberMe(checked as boolean)}
-              />
-              <Label htmlFor="remember" className="text-sm text-muted-foreground cursor-pointer">
-                Remember me
-              </Label>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-2">
+                <Checkbox
+                  id="remember"
+                  checked={rememberMe}
+                  onCheckedChange={(checked) => setRememberMe(checked as boolean)}
+                />
+                <Label htmlFor="remember" className="text-sm text-muted-foreground cursor-pointer">
+                  Remember me
+                </Label>
+              </div>
+              <Button
+                type="button"
+                variant="link"
+                className="text-sm p-0 h-auto"
+                onClick={() => setForgotPasswordOpen(true)}
+              >
+                Forgot password?
+              </Button>
             </div>
 
             <Button type="submit" className="w-full" disabled={isLoading}>
@@ -133,6 +213,45 @@ const Login = () => {
             </div>
           </div>
         </div>
+
+        {/* Forgot Password Dialog */}
+        <AlertDialog open={forgotPasswordOpen} onOpenChange={setForgotPasswordOpen}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Forgot Password?</AlertDialogTitle>
+              <AlertDialogDescription>
+                Enter your email address to check your account.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <div className="py-4">
+              <Label htmlFor="forgot-email">Email Address</Label>
+              <Input
+                id="forgot-email"
+                type="email"
+                placeholder="your.email@company.com"
+                value={forgotEmail}
+                onChange={(e) => setForgotEmail(e.target.value)}
+                className="mt-2"
+              />
+            </div>
+            <AlertDialogFooter>
+              <AlertDialogCancel onClick={() => setForgotEmail('')}>Cancel</AlertDialogCancel>
+              <AlertDialogAction 
+                onClick={handleForgotPassword}
+                disabled={checkingEmail}
+              >
+                {checkingEmail ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Checking...
+                  </>
+                ) : (
+                  'Submit'
+                )}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </div>
     </div>
   );

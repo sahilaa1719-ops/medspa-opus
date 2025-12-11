@@ -7,7 +7,8 @@ import {
   Award, 
   Settings, 
   LogOut,
-  Sparkles
+  Sparkles,
+  Receipt
 } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { cn } from '@/lib/utils';
@@ -18,6 +19,7 @@ const navItems = [
   { to: '/locations', icon: MapPin, label: 'Locations' },
   { to: '/documents', icon: FileText, label: 'Documents' },
   { to: '/licenses', icon: Award, label: 'Licenses' },
+  { to: '/taxes', icon: Receipt, label: 'Taxes' },
   { to: '/settings', icon: Settings, label: 'Settings' },
 ];
 

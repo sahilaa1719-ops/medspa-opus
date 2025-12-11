@@ -1,4 +1,42 @@
-import { Toaster } from "@/components/ui/toaster";
+Clean up App.tsx to remove Payroll portal and move Tax to Admin portal:
+
+1. DELETE all Payroll imports at the top:
+- Remove: import PayrollDashboard from "./pages/PayrollDashboard";
+- Remove: import RunPayroll from "./pages/RunPayroll";
+- Remove: import PayrollEmployees from "./pages/PayrollEmployees";
+- Remove: import PayrollPayStubs from "./pages/PayrollPayStubs";
+- Remove: import PayrollTimeEntry from "./pages/PayrollTimeEntry";
+- Remove: import PayrollTaxes from "./pages/PayrollTaxes";
+- Remove: import PayrollReports from "./pages/PayrollReports";
+- Remove: import PayrollSettings from "./pages/PayrollSettings";
+- Remove: import { PayrollLayout } from "@/components/layout/PayrollLayout";
+- Remove: import EmployeePayroll from "./pages/EmployeePayroll";
+
+2. KEEP these tax imports:
+- Keep: import EmployeeTaxes from "./pages/EmployeeTaxes";
+
+3. DELETE the entire getRedirectPath function and replace with:
+const getRedirectPath = () => {
+  if (!user) return "/login";
+  if (user.role === 'admin') return '/dashboard';
+  return '/employee-dashboard';
+};
+
+4. DELETE all Payroll Portal Routes (lines ~90-165):
+- Remove all routes from "/payroll-dashboard" down to "/payroll-settings"
+- Delete the entire PayrollLayout section
+
+5. MOVE Tax to Admin portal - Add this route inside the Admin Portal Routes section (around line 88):
+<Route path="taxes" element={<EmployeeTaxes />} />
+
+6. DELETE Tax from Employee portal:
+- Remove the entire "/employee-taxes" route section
+- Remove: import EmployeePayroll from "./pages/EmployeePayroll";
+- Remove the entire "/employee-payroll" route section
+
+After cleanup, the structure should be:
+- Admin Portal: Dashboard, Employees, Locations, Documents, Licenses, Taxes, Settings
+- Employee Portal: Dashboard, Profile, Documents, Licenses, Announcements, Settingsimport { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
@@ -81,7 +119,7 @@ const AppRoutes = () => {
         <Route path="settings" element={<Settings />} />
       </Route>
 
-      {/* Employee Portal Routes */}
+      {/* Employee Portal Routes */}}
       <Route
         path="/employee-dashboard"
         element={

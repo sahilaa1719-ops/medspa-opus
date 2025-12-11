@@ -1,310 +1,314 @@
+import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Upload, Download, Trash2, FileText } from 'lucide-react';
+import { supabase } from '@/lib/supabase';
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table';
-import { Alert, AlertDescription } from '@/components/ui/alert';
-import { FileText, Download, Eye, Calendar, DollarSign, Info, ExternalLink } from 'lucide-react';
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 
 const EmployeeTaxes = () => {
-  const taxDocuments = [
-    {
-      id: '1',
-      type: 'W-2 Form',
-      year: 2023,
-      dateIssued: new Date('2024-01-31'),
-      status: 'Available' as const,
-    },
-    {
-      id: '2',
-      type: 'W-2 Form',
-      year: 2022,
-      dateIssued: new Date('2023-01-31'),
-      status: 'Available' as const,
-    },
-    {
-      id: '3',
-      type: '1099 Form',
-      year: 2023,
-      dateIssued: new Date('2024-02-15'),
-      status: 'Available' as const,
-    },
-  ];
+  const [employees, setEmployees] = useState<any[]>([]);
+  const [taxDocuments, setTaxDocuments] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [uploading, setUploading] = useState(false);
+  
+  // Upload form state
+  const [selectedEmployee, setSelectedEmployee] = useState('');
+  const [documentName, setDocumentName] = useState('');
+  const [taxYear, setTaxYear] = useState(new Date().getFullYear().toString());
+  const [file, setFile] = useState<File | null>(null);
 
-  const handleView = (docType: string, year: number) => {
-    alert(`Viewing ${docType} for ${year}...`);
+  useEffect(() => {
+    fetchEmployees();
+    fetchTaxDocuments();
+  }, []);
+
+  const fetchEmployees = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('employees')
+        .select('id, full_name, email')
+        .order('full_name');
+      
+      if (error) {
+        console.error('Supabase error fetching employees:', error);
+        console.error('Error details:', JSON.stringify(error, null, 2));
+        alert(`Failed to load employees: ${error.message}`);
+        throw error;
+      }
+      
+      console.log('Fetched employees:', data);
+      setEmployees(data || []);
+    } catch (error) {
+      console.error('Error fetching employees:', error);
+    }
   };
 
-  const handleDownload = (docType: string, year: number) => {
-    alert(`Downloading ${docType} for ${year} as PDF...`);
+  const fetchTaxDocuments = async () => {
+    try {
+      setLoading(true);
+      const { data, error } = await supabase
+        .from('tax_documents')
+        .select(`
+          *,
+          employees:employee_id (
+            full_name,
+            email
+          )
+        `)
+        .order('uploaded_at', { ascending: false });
+      
+      if (error) {
+        console.error('Supabase error fetching tax documents:', error);
+        console.error('Error details:', JSON.stringify(error, null, 2));
+      }
+      setTaxDocuments(data || []);
+    } catch (error) {
+      console.error('Error fetching tax documents:', error);
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const handleRequestW4Update = () => {
-    alert('Please contact HR to update your W-4');
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      setFile(e.target.files[0]);
+    }
+  };
+
+  const handleUpload = async () => {
+    if (!selectedEmployee || !documentName || !taxYear || !file) {
+      alert('Please fill all fields and select a file');
+      return;
+    }
+
+    try {
+      setUploading(true);
+
+      // Upload file to storage
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${selectedEmployee}-${taxYear}-${Date.now()}.${fileExt}`;
+      const filePath = `tax-documents/${fileName}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from('employee-files')
+        .upload(filePath, file);
+
+      if (uploadError) throw uploadError;
+
+      // Get public URL
+      const { data: { publicUrl } } = supabase.storage
+        .from('employee-files')
+        .getPublicUrl(filePath);
+
+      // Insert record
+      const { error: insertError } = await supabase
+        .from('tax_documents')
+        .insert([{
+          employee_id: selectedEmployee,
+          document_name: documentName,
+          tax_year: parseInt(taxYear),
+          file_url: publicUrl,
+          file_size: file.size,
+          uploaded_by: 'admin'
+        }]);
+
+      if (insertError) throw insertError;
+
+      alert('Tax document uploaded successfully!');
+      
+      // Reset form
+      setSelectedEmployee('');
+      setDocumentName('');
+      setTaxYear(new Date().getFullYear().toString());
+      setFile(null);
+      
+      // Refresh list
+      fetchTaxDocuments();
+    } catch (error) {
+      console.error('Upload error:', error);
+      alert('Failed to upload tax document');
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const handleDownload = (fileUrl: string) => {
+    window.open(fileUrl, '_blank');
+  };
+
+  const handleDelete = async (docId: string) => {
+    if (!confirm('Are you sure you want to delete this tax document?')) return;
+
+    try {
+      const { error } = await supabase
+        .from('tax_documents')
+        .delete()
+        .eq('id', docId);
+
+      if (error) throw error;
+
+      alert('Tax document deleted successfully');
+      fetchTaxDocuments();
+    } catch (error) {
+      console.error('Delete error:', error);
+      alert('Failed to delete tax document');
+    }
   };
 
   return (
     <div className="p-6 space-y-6">
-      {/* Header */}
       <div>
         <h1 className="text-2xl font-bold text-gray-900">Tax Documents</h1>
-        <p className="text-sm text-gray-500 mt-1">
-          Access your tax forms and withholding information
-        </p>
+        <p className="text-sm text-gray-500 mt-1">Upload and manage employee tax documents</p>
       </div>
 
-      {/* Available Tax Documents */}
-      <Card className="border border-[#E5E7EB] bg-white shadow-sm">
+      {/* Upload Form */}
+      <Card className="border border-gray-200 bg-white shadow-sm">
         <CardHeader>
-          <CardTitle className="text-lg font-semibold">Available Tax Documents</CardTitle>
+          <CardTitle className="text-lg font-semibold">Upload Tax Document</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="border border-[#E5E7EB] rounded-lg overflow-hidden">
-            <Table>
-              <TableHeader>
-                <TableRow className="bg-gray-50 hover:bg-gray-50">
-                  <TableHead className="font-semibold">Document Type</TableHead>
-                  <TableHead className="font-semibold">Tax Year</TableHead>
-                  <TableHead className="font-semibold">Date Issued</TableHead>
-                  <TableHead className="font-semibold">Status</TableHead>
-                  <TableHead className="font-semibold">Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {taxDocuments.map((doc) => (
-                  <TableRow key={doc.id}>
-                    <TableCell className="font-medium">
-                      <div className="flex items-center gap-2">
-                        <FileText className="h-4 w-4 text-gray-500" />
-                        {doc.type}
-                      </div>
-                    </TableCell>
-                    <TableCell>{doc.year}</TableCell>
-                    <TableCell>
-                      {doc.dateIssued.toLocaleDateString('en-US', {
-                        year: 'numeric',
-                        month: 'short',
-                        day: 'numeric',
-                      })}
-                    </TableCell>
-                    <TableCell>
-                      <Badge className="bg-green-100 text-green-800 hover:bg-green-100">
-                        {doc.status}
-                      </Badge>
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex gap-2">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => handleView(doc.type, doc.year)}
-                          className="h-8"
-                        >
-                          <Eye className="h-3.5 w-3.5 mr-1" />
-                          View
-                        </Button>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => handleDownload(doc.type, doc.year)}
-                          className="h-8"
-                        >
-                          <Download className="h-3.5 w-3.5 mr-1" />
-                          Download PDF
-                        </Button>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </div>
-        </CardContent>
-      </Card>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label>Select Employee *</Label>
+              <Select value={selectedEmployee} onValueChange={setSelectedEmployee}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Choose employee..." />
+                </SelectTrigger>
+                <SelectContent>
+                  {employees.map((emp) => (
+                    <SelectItem key={emp.id} value={emp.id}>
+                      {emp.full_name} ({emp.email})
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
 
-      {/* Tax Withholding Information */}
-      <Card className="border border-[#E5E7EB] bg-white shadow-sm">
-        <CardHeader>
-          <div className="flex items-center justify-between">
-            <CardTitle className="text-lg font-semibold">Tax Withholding Information</CardTitle>
+            <div className="space-y-2">
+              <Label>Document Name *</Label>
+              <Input
+                placeholder="e.g., W-2 Form, 1099 Form"
+                value={documentName}
+                onChange={(e) => setDocumentName(e.target.value)}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label>Tax Year *</Label>
+              <Input
+                type="number"
+                placeholder="2024"
+                value={taxYear}
+                onChange={(e) => setTaxYear(e.target.value)}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label>Upload File *</Label>
+              <Input
+                type="file"
+                accept=".pdf,.doc,.docx"
+                onChange={handleFileChange}
+              />
+            </div>
+          </div>
+
+          <div className="mt-4">
             <Button
-              variant="outline"
-              size="sm"
-              onClick={handleRequestW4Update}
+              onClick={handleUpload}
+              disabled={uploading}
+              className="bg-blue-600 hover:bg-blue-700"
             >
-              Request W-4 Update
+              <Upload className="h-4 w-4 mr-2" />
+              {uploading ? 'Uploading...' : 'Upload Document'}
             </Button>
           </div>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            <div>
-              <p className="text-sm text-gray-500">Federal Tax ID</p>
-              <p className="text-base font-medium text-gray-900 mt-1">***-**-1234</p>
-            </div>
-            <div>
-              <p className="text-sm text-gray-500">Filing Status</p>
-              <p className="text-base font-medium text-gray-900 mt-1">Married Filing Jointly</p>
-            </div>
-            <div>
-              <p className="text-sm text-gray-500">Allowances</p>
-              <p className="text-base font-medium text-gray-900 mt-1">2</p>
-            </div>
-            <div>
-              <p className="text-sm text-gray-500">Additional Withholding</p>
-              <p className="text-base font-medium text-gray-900 mt-1">$0.00</p>
-            </div>
-            <div>
-              <p className="text-sm text-gray-500">State</p>
-              <p className="text-base font-medium text-gray-900 mt-1">New York</p>
-            </div>
-            <div>
-              <p className="text-sm text-gray-500">Last W-4 Update</p>
-              <p className="text-base font-medium text-gray-900 mt-1">Jan 15, 2024</p>
-            </div>
-          </div>
         </CardContent>
       </Card>
 
-      {/* Year-to-Date Tax Summary */}
-      <Card className="border border-[#E5E7EB] bg-white shadow-sm">
+      {/* Uploaded Documents */}
+      <Card className="border border-gray-200 bg-white shadow-sm">
         <CardHeader>
-          <div className="flex items-center gap-2">
-            <div className="flex items-center justify-center h-8 w-8 rounded-full bg-blue-50">
-              <DollarSign className="h-4 w-4 text-blue-600" />
-            </div>
-            <CardTitle className="text-lg font-semibold">Year-to-Date Tax Summary (2024)</CardTitle>
-          </div>
+          <CardTitle className="text-lg font-semibold">Uploaded Tax Documents</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="space-y-3">
-            <div className="flex justify-between items-center pb-2 border-b border-gray-200">
-              <span className="text-sm text-gray-600">Federal Tax Withheld</span>
-              <span className="text-base font-semibold text-gray-900">$10,238.46</span>
+          {loading ? (
+            <div>Loading...</div>
+          ) : (
+            <div className="border border-gray-200 rounded-lg overflow-hidden">
+              <Table>
+                <TableHeader>
+                  <TableRow className="bg-gray-50">
+                    <TableHead>Employee</TableHead>
+                    <TableHead>Document Name</TableHead>
+                    <TableHead>Tax Year</TableHead>
+                    <TableHead>Upload Date</TableHead>
+                    <TableHead>Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {taxDocuments.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={5} className="text-center text-gray-500">
+                        No tax documents uploaded yet
+                      </TableCell>
+                    </TableRow>
+                  ) : (
+                    taxDocuments.map((doc) => (
+                      <TableRow key={doc.id}>
+                        <TableCell>
+                          {doc.employees?.full_name}
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex items-center gap-2">
+                            <FileText className="h-4 w-4 text-gray-500" />
+                            {doc.document_name}
+                          </div>
+                        </TableCell>
+                        <TableCell>{doc.tax_year}</TableCell>
+                        <TableCell>
+                          {new Date(doc.uploaded_at).toLocaleDateString()}
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex gap-2">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => handleDownload(doc.file_url)}
+                            >
+                              <Download className="h-3.5 w-3.5 mr-1" />
+                              Download
+                            </Button>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => handleDelete(doc.id)}
+                              className="text-red-600 hover:text-red-700"
+                            >
+                              <Trash2 className="h-3.5 w-3.5 mr-1" />
+                              Delete
+                            </Button>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  )}
+                </TableBody>
+              </Table>
             </div>
-            <div className="flex justify-between items-center pb-2 border-b border-gray-200">
-              <span className="text-sm text-gray-600">State Tax Withheld</span>
-              <span className="text-base font-semibold text-gray-900">$3,412.56</span>
-            </div>
-            <div className="flex justify-between items-center pb-2 border-b border-gray-200">
-              <span className="text-sm text-gray-600">Social Security Withheld</span>
-              <span className="text-base font-semibold text-gray-900">$4,231.50</span>
-            </div>
-            <div className="flex justify-between items-center pb-2 border-b border-gray-200">
-              <span className="text-sm text-gray-600">Medicare Withheld</span>
-              <span className="text-base font-semibold text-gray-900">$989.63</span>
-            </div>
-            <div className="flex justify-between items-center pt-2 bg-blue-50 p-3 rounded-lg">
-              <span className="text-base font-semibold text-blue-900">Total Tax Withheld YTD</span>
-              <span className="text-xl font-bold text-blue-900">$18,872.15</span>
-            </div>
-          </div>
+          )}
         </CardContent>
       </Card>
-
-      {/* Important Dates */}
-      <Card className="border border-[#E5E7EB] bg-white shadow-sm">
-        <CardHeader>
-          <div className="flex items-center gap-2">
-            <div className="flex items-center justify-center h-8 w-8 rounded-full bg-purple-50">
-              <Calendar className="h-4 w-4 text-purple-600" />
-            </div>
-            <CardTitle className="text-lg font-semibold">Important Dates</CardTitle>
-          </div>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-3">
-            <div className="flex items-start gap-3">
-              <div className="flex-shrink-0 w-2 h-2 bg-purple-500 rounded-full mt-2"></div>
-              <div>
-                <p className="text-sm font-medium text-gray-900">W-2 Forms Available</p>
-                <p className="text-sm text-gray-500">January 31, 2025</p>
-              </div>
-            </div>
-            <div className="flex items-start gap-3">
-              <div className="flex-shrink-0 w-2 h-2 bg-purple-500 rounded-full mt-2"></div>
-              <div>
-                <p className="text-sm font-medium text-gray-900">Tax Filing Deadline</p>
-                <p className="text-sm text-gray-500">April 15, 2025</p>
-              </div>
-            </div>
-            <div className="flex items-start gap-3">
-              <div className="flex-shrink-0 w-2 h-2 bg-purple-500 rounded-full mt-2"></div>
-              <div>
-                <p className="text-sm font-medium text-gray-900">Estimated Tax Quarter Deadlines</p>
-                <ul className="text-sm text-gray-500 mt-1 space-y-1">
-                  <li>• Q1: April 15, 2025</li>
-                  <li>• Q2: June 15, 2025</li>
-                  <li>• Q3: September 15, 2025</li>
-                  <li>• Q4: January 15, 2026</li>
-                </ul>
-              </div>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Tax Resources */}
-      <Card className="border border-[#E5E7EB] bg-white shadow-sm">
-        <CardHeader>
-          <div className="flex items-center gap-2">
-            <div className="flex items-center justify-center h-8 w-8 rounded-full bg-green-50">
-              <Info className="h-4 w-4 text-green-600" />
-            </div>
-            <CardTitle className="text-lg font-semibold">Tax Resources</CardTitle>
-          </div>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-2">
-            <a 
-              href="#" 
-              className="flex items-center gap-2 text-blue-600 hover:text-blue-700 text-sm font-medium"
-              onClick={(e) => { e.preventDefault(); alert('Opening IRS Tax Withholding Estimator...'); }}
-            >
-              <ExternalLink className="h-4 w-4" />
-              IRS Tax Withholding Estimator
-            </a>
-            <a 
-              href="#" 
-              className="flex items-center gap-2 text-blue-600 hover:text-blue-700 text-sm font-medium"
-              onClick={(e) => { e.preventDefault(); alert('Opening Understanding Your W-2...'); }}
-            >
-              <ExternalLink className="h-4 w-4" />
-              Understanding Your W-2
-            </a>
-            <a 
-              href="#" 
-              className="flex items-center gap-2 text-blue-600 hover:text-blue-700 text-sm font-medium"
-              onClick={(e) => { e.preventDefault(); alert('Opening Tax Filing Deadlines & Extensions...'); }}
-            >
-              <ExternalLink className="h-4 w-4" />
-              Tax Filing Deadlines & Extensions
-            </a>
-            <a 
-              href="#" 
-              className="flex items-center gap-2 text-blue-600 hover:text-blue-700 text-sm font-medium"
-              onClick={(e) => { e.preventDefault(); alert('Opening State Tax Information...'); }}
-            >
-              <ExternalLink className="h-4 w-4" />
-              State Tax Information
-            </a>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Information Notice */}
-      <Alert className="bg-blue-50 border-blue-200">
-        <Info className="h-4 w-4 text-blue-600" />
-        <AlertDescription className="text-blue-800 text-sm">
-          Tax documents are available by January 31st each year. For questions about withholdings or to update your W-4, please contact HR.
-        </AlertDescription>
-      </Alert>
     </div>
   );
 };

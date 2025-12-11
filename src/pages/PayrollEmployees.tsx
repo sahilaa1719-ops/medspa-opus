@@ -35,7 +35,14 @@ interface Employee {
   name: string;
   photoUrl: string;
   position: string;
-  locations: string[];
+  locations: string[]; // Mock data format
+  employee_locations?: Array<{ // Supabase join format
+    location_id: string;
+    locations?: {
+      id: string;
+      name: string;
+    };
+  }>;
   employmentType: 'Hourly' | 'Salaried';
   payRate: number;
   payFrequency: string;
@@ -189,7 +196,10 @@ const PayrollEmployees = () => {
   const filteredEmployees = employees.filter(emp => {
     const matchesSearch = emp.name.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesType = typeFilter === 'all' || emp.employmentType.toLowerCase() === typeFilter;
-    const matchesLocation = locationFilter === 'all' || emp.locations.some(loc => loc.includes(locationFilter));
+    // Handle both old mock data (locations array) and new structure (employee_locations)
+    const matchesLocation = locationFilter === 'all' || 
+      (emp.employee_locations?.some(el => el.location_id === locationFilter) || 
+       emp.locations?.some(loc => loc.includes(locationFilter)));
     return matchesSearch && matchesType && matchesLocation;
   });
 

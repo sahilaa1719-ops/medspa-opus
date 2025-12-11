@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { Plus, Pencil, Trash2, MapPin, Phone, Users } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { Plus, Pencil, Trash2, MapPin, Phone } from 'lucide-react';
 import { Header } from '@/components/layout/Header';
 import { Button } from '@/components/ui/button';
 import {
@@ -17,14 +17,10 @@ import { toast } from 'sonner';
 import { LocationFormModal } from '@/components/locations/LocationFormModal';
 
 const Locations = () => {
-  const { locations, employees, deleteLocation } = useData();
+  const { locations, deleteLocation } = useData();
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingLocationId, setEditingLocationId] = useState<string | null>(null);
-
-  const getEmployeeCount = (locationId: string) => {
-    return employees.filter((e) => e.locationIds.includes(locationId)).length;
-  };
 
   const handleDelete = async () => {
     if (deleteId) {
@@ -74,10 +70,6 @@ const Locations = () => {
                 <div className="flex items-center gap-2">
                   <Phone className="h-4 w-4" />
                   <span>{location.phone || 'No phone provided'}</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Users className="h-4 w-4" />
-                  <span>{getEmployeeCount(location.id)} employees</span>
                 </div>
               </div>
 

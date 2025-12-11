@@ -1,5 +1,5 @@
+import { useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
 import {
   Table,
   TableBody,
@@ -8,55 +8,91 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { Download, Upload } from 'lucide-react';
+import { Download, Trash2 } from 'lucide-react';
+import { supabase } from '@/lib/supabase';
+import { useAuth } from '@/context/AuthContext';
 
 const EmployeeDocuments = () => {
-  // Sample documents for Sarah Johnson
-  const documents = [
-    {
-      id: '1',
-      name: 'Employment Contract',
-      type: 'Contract',
-      uploadDate: new Date('2022-03-15'),
-      status: 'Approved' as const,
-    },
-    {
-      id: '2',
-      name: 'RN License Copy',
-      type: 'License Copy',
-      uploadDate: new Date('2023-01-15'),
-      status: 'Approved' as const,
-    },
-    {
-      id: '3',
-      name: 'ID Copy',
-      type: 'ID Copy',
-      uploadDate: new Date('2022-06-01'),
-      status: 'Approved' as const,
-    },
-  ];
+  const { user } = useAuth();
+  const [documents, setDocuments] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  const getStatusBadge = (status: 'Approved' | 'Pending' | 'Rejected') => {
-    const variants = {
-      Approved: 'bg-green-100 text-green-800 hover:bg-green-100',
-      Pending: 'bg-yellow-100 text-yellow-800 hover:bg-yellow-100',
-      Rejected: 'bg-red-100 text-red-800 hover:bg-red-100',
-    };
+  useEffect(() => {
+    fetchDocuments();
+  }, [user]);
 
-    return (
-      <Badge className={variants[status]}>
-        {status}
-      </Badge>
-    );
+  const fetchDocuments = async () => {
+    if (!user) return;
+    
+    try {
+      setLoading(true);
+      
+      // Get employee_id for current user
+      const { data: employeeData } = await supabase
+        .from('employees')
+        .select('id')
+        .eq('email', user.email)
+        .single();
+
+      if (employeeData) {
+        // Fetch documents for this employee
+        const { data, error } = await supabase
+          .from('documents')
+          .select('*')
+          .eq('employee_id', employeeData.id)
+          .order('created_at', { ascending: false });
+
+        if (error) throw error;
+        setDocuments(data || []);
+      }
+    } catch (error) {
+      console.error('Error fetching documents:', error);
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const handleUploadClick = () => {
-    alert('Upload document functionality coming soon');
+  const handleDelete = async (docId: string) => {
+    if (!confirm('Are you sure you want to delete this document?')) return;
+    
+    try {
+      const { error } = await supabase
+        .from('documents')
+        .delete()
+        .eq('id', docId);
+
+      if (error) throw error;
+      
+      // Refresh documents
+      fetchDocuments();
+      alert('Document deleted successfully');
+    } catch (error) {
+      console.error('Error deleting document:', error);
+      alert('Failed to delete document');
+    }
   };
 
-  const handleDownload = (documentName: string) => {
-    alert(`Downloading ${documentName}...`);
+  const handleDownload = async (fileUrl: string, title: string) => {
+    try {
+      const response = await fetch(fileUrl);
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = title || 'document';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error('Download error:', error);
+      alert('Failed to download file');
+    }
   };
+
+  if (loading) {
+    return <div className="p-6">Loading documents...</div>;
+  }
 
   return (
     <div className="p-6 space-y-6">
@@ -68,13 +104,6 @@ const EmployeeDocuments = () => {
             View and manage your uploaded documents
           </p>
         </div>
-        <Button 
-          onClick={handleUploadClick}
-          className="bg-blue-600 hover:bg-blue-700 text-white"
-        >
-          <Upload className="h-4 w-4 mr-2" />
-          Upload Document
-        </Button>
       </div>
 
       {/* Documents Table */}
@@ -85,7 +114,7 @@ const EmployeeDocuments = () => {
               <TableHead className="font-semibold text-gray-900">Document Name</TableHead>
               <TableHead className="font-semibold text-gray-900">Document Type</TableHead>
               <TableHead className="font-semibold text-gray-900">Upload Date</TableHead>
-              <TableHead className="font-semibold text-gray-900">Status</TableHead>
+              <TableHead className="font-semibold text-gray-900">File Size</TableHead>
               <TableHead className="font-semibold text-gray-900">Actions</TableHead>
             </TableRow>
           </TableHeader>
@@ -93,31 +122,42 @@ const EmployeeDocuments = () => {
             {documents.map((doc) => (
               <TableRow key={doc.id} className="hover:bg-gray-50">
                 <TableCell className="font-medium text-gray-900">
-                  {doc.name}
+                  {doc.title}
                 </TableCell>
                 <TableCell className="text-gray-700">
-                  {doc.type}
+                  {doc.document_type}
                 </TableCell>
                 <TableCell className="text-gray-700">
-                  {doc.uploadDate.toLocaleDateString('en-US', {
+                  {new Date(doc.created_at).toLocaleDateString('en-US', {
                     year: 'numeric',
                     month: 'short',
                     day: 'numeric',
                   })}
                 </TableCell>
-                <TableCell>
-                  {getStatusBadge(doc.status)}
+                <TableCell className="text-gray-700">
+                  {doc.file_size ? `${(doc.file_size / 1024).toFixed(1)} KB` : 'N/A'}
                 </TableCell>
                 <TableCell>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => handleDownload(doc.name)}
-                    className="h-8"
-                  >
-                    <Download className="h-3.5 w-3.5 mr-1" />
-                    Download
-                  </Button>
+                  <div className="flex gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleDownload(doc.file_url, doc.title)}
+                      className="h-8"
+                    >
+                      <Download className="h-3.5 w-3.5 mr-1" />
+                      Download
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleDelete(doc.id)}
+                      className="h-8 text-red-600 hover:text-red-700 hover:bg-red-50"
+                    >
+                      <Trash2 className="h-3.5 w-3.5 mr-1" />
+                      Delete
+                    </Button>
+                  </div>
                 </TableCell>
               </TableRow>
             ))}

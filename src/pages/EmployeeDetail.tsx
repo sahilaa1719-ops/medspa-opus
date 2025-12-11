@@ -1,6 +1,7 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Mail, Phone, Calendar, Pencil, Trash2, Plus } from 'lucide-react';
+import { ArrowLeft, Mail, Phone, Calendar, Pencil, Trash2, Plus, Download } from 'lucide-react';
+import { supabase } from '@/lib/supabase';
 import { format, differenceInYears, differenceInMonths } from 'date-fns';
 import { Header } from '@/components/layout/Header';
 import { Button } from '@/components/ui/button';
@@ -28,25 +29,111 @@ import { DocumentFormModal } from '@/components/documents/DocumentFormModal';
 const EmployeeDetail = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { employees, locations, licenses, documents, deleteEmployee, deleteLicense, deleteDocument } = useData();
+  const { employees, locations, deleteEmployee } = useData();
   const { getLicenseStatus, getExpirationText } = useLicenseStatus();
   
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
-  const [deleteLicenseId, setDeleteLicenseId] = useState<string | null>(null);
-  const [deleteDocumentId, setDeleteDocumentId] = useState<string | null>(null);
   const [isEditFormOpen, setIsEditFormOpen] = useState(false);
   const [isLicenseFormOpen, setIsLicenseFormOpen] = useState(false);
   const [editingLicenseId, setEditingLicenseId] = useState<string | null>(null);
   const [isDocumentFormOpen, setIsDocumentFormOpen] = useState(false);
+  const [documents, setDocuments] = useState<any[]>([]);
+  const [licenses, setLicenses] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
 
   const employee = employees.find((e) => e.id === id);
-  const employeeLicenses = licenses.filter((l) => l.employeeId === id);
-  const employeeDocuments = documents.filter((d) => d.employeeId === id);
+  const employeeLicenses = licenses;
+  const employeeDocuments = documents;
+
+  useEffect(() => {
+    if (employee?.id) {
+      fetchDocumentsAndLicenses();
+    }
+  }, [employee?.id]);
+
+  const fetchDocumentsAndLicenses = async () => {
+    if (!employee?.id) return;
+    
+    try {
+      setLoading(true);
+      
+      // Fetch documents
+      const { data: docsData } = await supabase
+        .from('documents')
+        .select('*')
+        .eq('employee_id', employee.id)
+        .order('created_at', { ascending: false });
+      
+      // Fetch licenses
+      const { data: licensesData } = await supabase
+        .from('licenses')
+        .select('*')
+        .eq('employee_id', employee.id)
+        .order('created_at', { ascending: false });
+      
+      setDocuments(docsData || []);
+      setLicenses(licensesData || []);
+    } catch (error) {
+      console.error('Error fetching data:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleDownload = (fileUrl: string, title: string) => {
+    window.open(fileUrl, '_blank');
+  };
+
+  const handleDeleteDoc = async (docId: string) => {
+    if (!confirm('Are you sure you want to delete this document?')) return;
+    
+    try {
+      const { error } = await supabase
+        .from('documents')
+        .delete()
+        .eq('id', docId);
+      
+      if (error) throw error;
+      
+      fetchDocumentsAndLicenses();
+      toast.success('Document deleted successfully');
+    } catch (error) {
+      console.error('Delete error:', error);
+      toast.error('Failed to delete document');
+    }
+  };
+
+  const handleDeleteLic = async (licenseId: string) => {
+    if (!confirm('Are you sure you want to delete this license?')) return;
+    
+    try {
+      const { error } = await supabase
+        .from('licenses')
+        .delete()
+        .eq('id', licenseId);
+      
+      if (error) throw error;
+      
+      fetchDocumentsAndLicenses();
+      toast.success('License deleted successfully');
+    } catch (error) {
+      console.error('Delete error:', error);
+      toast.error('Failed to delete license');
+    }
+  };
 
   if (!employee) {
     return (
       <div className="flex min-h-screen items-center justify-center">
         <p className="text-muted-foreground">Employee not found</p>
+      </div>
+    );
+  }
+
+  if (loading) {
+    return (
+      <div className="flex min-h-screen items-center justify-center">
+        <p className="text-muted-foreground">Loading...</p>
       </div>
     );
   }
@@ -67,22 +154,6 @@ const EmployeeDetail = () => {
     await deleteEmployee(employee.id);
     toast.success('Employee deleted successfully');
     navigate('/employees');
-  };
-
-  const handleDeleteLicense = async () => {
-    if (deleteLicenseId) {
-      await deleteLicense(deleteLicenseId);
-      toast.success('License deleted successfully');
-      setDeleteLicenseId(null);
-    }
-  };
-
-  const handleDeleteDocument = async () => {
-    if (deleteDocumentId) {
-      await deleteDocument(deleteDocumentId);
-      toast.success('Document deleted successfully');
-      setDeleteDocumentId(null);
-    }
   };
 
   const handleEditLicense = (licenseId: string) => {
@@ -233,20 +304,29 @@ const EmployeeDetail = () => {
                     key={doc.id}
                     className="flex items-center justify-between rounded-lg border border-[#E5E7EB] bg-white p-4 shadow-sm"
                   >
-                    <div>
+                    <div className="flex-1">
                       <p className="font-medium text-card-foreground">{doc.title}</p>
                       <p className="text-sm text-muted-foreground">
-                        {doc.documentType} • {format(new Date(doc.uploadedAt), 'MMM d, yyyy')}
+                        {doc.document_type} • {format(new Date(doc.created_at), 'MMM d, yyyy')}
                       </p>
                     </div>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="text-destructive hover:text-destructive"
-                      onClick={() => setDeleteDocumentId(doc.id)}
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
+                    <div className="flex gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleDownload(doc.file_url, doc.title)}
+                      >
+                        <Download className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="text-destructive hover:text-destructive"
+                        onClick={() => handleDeleteDoc(doc.id)}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
                   </div>
                 ))}
               </div>
@@ -268,7 +348,7 @@ const EmployeeDetail = () => {
             ) : (
               <div className="grid gap-4 md:grid-cols-2">
                 {employeeLicenses.map((license) => {
-                  const status = getLicenseStatus(new Date(license.expiryDate));
+                  const status = getLicenseStatus(new Date(license.expiry_date));
                   return (
                     <div
                       key={license.id}
@@ -277,14 +357,14 @@ const EmployeeDetail = () => {
                       <div className="flex items-start justify-between">
                         <div>
                           <h4 className="font-semibold text-card-foreground">
-                            {license.licenseType}
+                            {license.license_type}
                           </h4>
                           <p className="text-sm text-muted-foreground">
-                            #{license.licenseNumber}
+                            #{license.license_number}
                           </p>
                         </div>
                         <StatusBadge status={status}>
-                          {getExpirationText(new Date(license.expiryDate))}
+                          {getExpirationText(new Date(license.expiry_date))}
                         </StatusBadge>
                       </div>
                       
@@ -292,18 +372,27 @@ const EmployeeDetail = () => {
                         <div>
                           <p className="text-muted-foreground">Issue Date</p>
                           <p className="font-medium text-card-foreground">
-                            {format(new Date(license.issueDate), 'MMM d, yyyy')}
+                            {license.issue_date ? format(new Date(license.issue_date), 'MMM d, yyyy') : 'N/A'}
                           </p>
                         </div>
                         <div>
                           <p className="text-muted-foreground">Expiry Date</p>
                           <p className="font-medium text-card-foreground">
-                            {format(new Date(license.expiryDate), 'MMM d, yyyy')}
+                            {format(new Date(license.expiry_date), 'MMM d, yyyy')}
                           </p>
                         </div>
                       </div>
 
                       <div className="mt-4 flex justify-end gap-2 border-t border-border pt-4">
+                        {license.document_url && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleDownload(license.document_url, license.license_type)}
+                          >
+                            <Download className="h-4 w-4" />
+                          </Button>
+                        )}
                         <Button
                           variant="ghost"
                           size="sm"
@@ -315,7 +404,7 @@ const EmployeeDetail = () => {
                           variant="ghost"
                           size="sm"
                           className="text-destructive hover:text-destructive"
-                          onClick={() => setDeleteLicenseId(license.id)}
+                          onClick={() => handleDeleteLic(license.id)}
                         >
                           <Trash2 className="h-4 w-4" />
                         </Button>
@@ -341,42 +430,6 @@ const EmployeeDetail = () => {
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction onClick={handleDeleteEmployee} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
-              Delete
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-
-      {/* Delete License Dialog */}
-      <AlertDialog open={!!deleteLicenseId} onOpenChange={() => setDeleteLicenseId(null)}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Delete License</AlertDialogTitle>
-            <AlertDialogDescription>
-              Are you sure you want to delete this license? This action cannot be undone.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={handleDeleteLicense} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
-              Delete
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-
-      {/* Delete Document Dialog */}
-      <AlertDialog open={!!deleteDocumentId} onOpenChange={() => setDeleteDocumentId(null)}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Delete Document</AlertDialogTitle>
-            <AlertDialogDescription>
-              Are you sure you want to delete this document? This action cannot be undone.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={handleDeleteDocument} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
               Delete
             </AlertDialogAction>
           </AlertDialogFooter>

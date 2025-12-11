@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
-import { Upload, X, FileText, Plus, Camera, User } from 'lucide-react';
+import { Upload, X, FileText, Plus, Camera, User, Eye, Trash2, Download } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
@@ -32,6 +32,7 @@ import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { useData } from '@/context/DataContext';
 import { toast } from 'sonner';
 import { Position, LicenseType, DocumentType } from '@/types';
+import { supabase } from '@/lib/supabase';
 
 const positions: Position[] = [
   'RN',
@@ -146,6 +147,7 @@ export const EmployeeFormModal = ({ open, onClose, employeeId }: EmployeeFormMod
   const [documents, setDocuments] = useState<DocumentUpload[]>([]);
   const [licenses, setLicenses] = useState<LicenseEntry[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [showAddDocumentForm, setShowAddDocumentForm] = useState(false);
 
   const {
     register,
@@ -184,6 +186,9 @@ export const EmployeeFormModal = ({ open, onClose, employeeId }: EmployeeFormMod
   useEffect(() => {
     if (employee && employeeId) {
       // Load employee data for editing
+      // Extract location IDs from employee_locations join or fall back to locationIds
+      const locationIds = employee.employee_locations?.map(el => el.location_id) || employee.locationIds || [];
+      
       reset({
         fullName: employee.fullName,
         email: employee.email,
@@ -191,7 +196,7 @@ export const EmployeeFormModal = ({ open, onClose, employeeId }: EmployeeFormMod
         position: employee.position,
         hireDate: employee.hireDate ? new Date(employee.hireDate).toISOString().split('T')[0] : '',
         status: employee.status === 'active',
-        locationIds: employee.locationIds,
+        locationIds: locationIds,
         emergencyContact1: {
           name: employee.emergencyContactName || '',
           phone: employee.emergencyContactPhone || '',
@@ -381,6 +386,16 @@ export const EmployeeFormModal = ({ open, onClose, employeeId }: EmployeeFormMod
     }
   };
 
+  // Function to generate random password
+  const generatePassword = () => {
+    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789!@#$%';
+    let password = '';
+    for (let i = 0; i < 12; i++) {
+      password += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    return password;
+  };
+
   const onSubmit = async (data: FormData) => {
     setIsSubmitting(true);
     
@@ -409,6 +424,7 @@ export const EmployeeFormModal = ({ open, onClose, employeeId }: EmployeeFormMod
       };
 
       let newEmployeeId: string;
+      let generatedPassword = '';
       
       if (employeeId) {
         await updateEmployee(employeeId, employeeData);
@@ -417,38 +433,186 @@ export const EmployeeFormModal = ({ open, onClose, employeeId }: EmployeeFormMod
       } else {
         // For new employees, add the employee and get the generated ID
         newEmployeeId = await addEmployee(employeeData);
+        console.log('New employee created with ID:', newEmployeeId);
+        
+        // Generate login credentials for new employee
+        generatedPassword = generatePassword();
+        
+        try {
+          // Create user account in users table
+          const { error: userError } = await supabase
+            .from('users')
+            .insert([{
+              email: data.email,
+              password_hash: generatedPassword, // In production, this should be hashed
+              name: data.fullName,
+              role: 'employee'
+            }]);
+          
+          if (userError) {
+            console.error('Error creating user account:', userError);
+            console.error('Error details:', JSON.stringify(userError, null, 2));
+            alert(`Login account creation failed: ${userError.message}\n\nError code: ${userError.code}`);
+            toast.error('Employee created but login account failed. Please create manually.');
+          } else {
+            // Show credentials to admin
+            toast.success(
+              `Employee created successfully!\n\nLogin Credentials:\nEmail: ${data.email}\nPassword: ${generatedPassword}\n\nPlease save these credentials and share with the employee.`,
+              { duration: 15000 }
+            );
+            
+            // Also log to console for admin to copy
+            console.log('=== NEW EMPLOYEE LOGIN CREDENTIALS ===');
+            console.log('Email:', data.email);
+            console.log('Password:', generatedPassword);
+            console.log('=====================================');
+          }
+        } catch (error) {
+          console.error('Error creating login credentials:', error);
+        }
       }
 
-      // Handle documents
+      // Handle documents - upload files to Supabase Storage
+      console.log('Documents to upload:', documents);
+      console.log('Number of documents:', documents.length);
+      
       for (const doc of documents) {
+        console.log('Processing document:', doc);
+        console.log('Is existing?', doc.isExisting);
+        console.log('Has documentType?', doc.documentType);
+        console.log('Has title?', doc.title);
+        console.log('Has file?', doc.file);
+        
         if (!doc.isExisting && doc.documentType && doc.title && doc.file) {
-          // Add new document
-          const documentData = {
-            employeeId: newEmployeeId,
-            title: doc.title,
+          try {
+            console.log('Starting upload for:', doc.title);
+            // Upload file to Supabase Storage
+            const fileExt = doc.file.name.split('.').pop();
+            const fileName = `${newEmployeeId}-${doc.documentType}-${Date.now()}.${fileExt}`;
+            const filePath = `documents/${fileName}`;
+            
+            console.log('Uploading to path:', filePath);
+            const { error: uploadError } = await supabase.storage
+              .from('employee-files')
+              .upload(filePath, doc.file);
+            
+            if (uploadError) {
+              console.error('File upload error:', uploadError);
+              toast.error(`Failed to upload ${doc.file.name}`);
+              continue;
+            }
+            
+            console.log('File uploaded successfully, getting public URL...');
+            // Get public URL
+            const { data: { publicUrl } } = supabase.storage
+              .from('employee-files')
+              .getPublicUrl(filePath);
+            
+            console.log('Public URL:', publicUrl);
+            
+            // Insert document record
+            const docInsert = {
+              employee_id: newEmployeeId,
+              title: doc.title,
+              document_type: doc.documentType,
+              file_url: publicUrl,
+              file_size: doc.file.size
+            };
+            
+            console.log('Inserting document record:', docInsert);
+            const { data: insertedDoc, error: insertError } = await supabase
+              .from('documents')
+              .insert([docInsert])
+              .select();
+            
+            if (insertError) {
+              console.error('Document insert error:', insertError);
+              toast.error(`Failed to save document: ${doc.title}`);
+            } else {
+              console.log('Document inserted successfully:', insertedDoc);
+              toast.success(`Document uploaded: ${doc.title}`);
+            }
+            
+          } catch (error) {
+            console.error('Error uploading document:', error);
+            toast.error(`Failed to upload document: ${doc.title}`);
+          }
+        } else {
+          console.log('Skipping document (existing or incomplete):', {
+            isExisting: doc.isExisting,
             documentType: doc.documentType,
-            fileUrl: '', // In real app, upload file and get URL
-            fileName: doc.file.name,
-            notes: '',
-          };
-          await addDocument(documentData);
+            title: doc.title,
+            hasFile: !!doc.file
+          });
         }
         // Existing documents don't need to be re-added, they're already in the system
       }
 
-      // Handle licenses
+      // Upload licenses
+      console.log('Licenses to upload:', licenses);
+      console.log('Number of licenses:', licenses.length);
+
       for (const license of licenses) {
         if (!license.isExisting && license.licenseType && license.expiryDate) {
-          // Add new license
-          const licenseData = {
-            employeeId: newEmployeeId,
-            licenseType: license.licenseType,
-            licenseNumber: license.licenseNumber,
-            issueDate: license.issueDate ? new Date(license.issueDate) : new Date(),
-            expiryDate: new Date(license.expiryDate),
-            documentUrl: '', // In real app, upload file and get URL
+          console.log('Processing license:', license);
+          
+          // If license has a file, upload it
+          let licenseFileUrl = license.documentUrl || null;
+          
+          if (license.file) {
+            console.log('Uploading license file:', license.file.name);
+            
+            const fileExt = license.file.name.split('.').pop();
+            const fileName = `${newEmployeeId}-${license.licenseType.replace(/\s+/g, '-')}-${Date.now()}.${fileExt}`;
+            const filePath = `licenses/${fileName}`;
+
+            console.log('Uploading to path:', filePath);
+
+            const { data: uploadData, error: uploadError } = await supabase.storage
+              .from('employee-files')
+              .upload(filePath, license.file);
+
+            if (uploadError) {
+              console.error('License file upload error:', uploadError);
+              toast.error(`Failed to upload license file for ${license.licenseType}`);
+              continue;
+            }
+
+            console.log('License file uploaded successfully');
+
+            const { data: { publicUrl } } = supabase.storage
+              .from('employee-files')
+              .getPublicUrl(filePath);
+
+            licenseFileUrl = publicUrl;
+            console.log('License public URL:', licenseFileUrl);
+            toast.success(`License file uploaded: ${license.licenseType}`);
+          }
+
+          // Insert license record
+          const licenseInsert = {
+            employee_id: newEmployeeId,
+            license_type: license.licenseType,
+            license_number: license.licenseNumber || null,
+            issue_date: license.issueDate || null,
+            expiry_date: license.expiryDate,
+            document_url: licenseFileUrl
           };
-          await addLicense(licenseData);
+
+          console.log('Inserting license record:', licenseInsert);
+
+          const { data: insertedLicense, error: licenseError } = await supabase
+            .from('licenses')
+            .insert([licenseInsert])
+            .select();
+
+          if (licenseError) {
+            console.error('License insert error:', licenseError);
+            toast.error(`Failed to save license: ${license.licenseType}`);
+          } else {
+            console.log('License inserted successfully:', insertedLicense);
+            toast.success(`License saved: ${license.licenseType}`);
+          }
         }
         // Existing licenses don't need to be re-added, they're already in the system
       }
@@ -612,99 +776,169 @@ export const EmployeeFormModal = ({ open, onClose, employeeId }: EmployeeFormMod
                   <h3 className="text-lg font-medium">Document Uploads</h3>
                   <p className="text-sm text-gray-600">Upload required documents for employee records</p>
                 </div>
-                <Button type="button" onClick={addDocumentForm} className="flex items-center gap-2">
+                <Button 
+                  type="button" 
+                  onClick={() => {
+                    if (!showAddDocumentForm) {
+                      addDocumentForm();
+                      setShowAddDocumentForm(true);
+                    }
+                  }} 
+                  className="flex items-center gap-2"
+                >
                   <Plus className="h-4 w-4" />
-                  Add Document
+                  Add New Document
                 </Button>
               </div>
 
-              <div className="space-y-4">
-                {documents.map((doc) => (
-                  <div key={doc.id} className="border border-gray-200 rounded-lg p-4">
-                    <div className="flex items-center justify-between mb-4">
-                      <h4 className="font-medium text-gray-900">Document #{doc.id.slice(-4)}</h4>
-                      <Button 
-                        type="button" 
-                        variant="outline" 
-                        size="sm"
-                        onClick={() => removeDocument(doc.id)}
-                      >
-                        <X className="h-4 w-4" />
-                      </Button>
-                    </div>
-                    
-                    <div className="grid gap-4 md:grid-cols-2">
-                      <div className="space-y-2">
-                        <Label>Document Type *</Label>
-                        <Select
-                          value={doc.documentType}
-                          onValueChange={(value) => updateDocument(doc.id, 'documentType', value)}
-                        >
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select document type" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="Contract">Employment Contract</SelectItem>
-                            <SelectItem value="License Copy">Medical License</SelectItem>
-                            <SelectItem value="License Copy">Professional License Copy</SelectItem>
-                            <SelectItem value="ID Copy">Government ID Copy</SelectItem>
-                            <SelectItem value="Insurance">Insurance Documents</SelectItem>
-                            <SelectItem value="Certification">Background Check</SelectItem>
-                            <SelectItem value="Certification">Certifications</SelectItem>
-                            <SelectItem value="Other">Other Documents</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
-                      
-                      <div className="space-y-2">
-                        <Label>Document Title/Name *</Label>
-                        <Input
-                          value={doc.title}
-                          onChange={(e) => updateDocument(doc.id, 'title', e.target.value)}
-                          placeholder="e.g., Employment Contract - John Doe"
-                        />
-                      </div>
-                      
-                      <div className="space-y-2 md:col-span-2">
-                        <Label>Upload File</Label>
-                        <div className="flex items-center gap-4">
-                          <Button
-                            type="button"
-                            variant="outline"
-                            onClick={() => document.getElementById(`doc-${doc.id}`)?.click()}
-                            className="flex items-center gap-2"
-                          >
-                            <Upload className="h-4 w-4" />
-                            Choose File
-                          </Button>
-                          {doc.preview && (
-                            <div className="flex items-center gap-2 text-sm text-gray-600">
-                              <FileText className="h-4 w-4" />
-                              {doc.preview}
+              {/* Existing Documents List */}
+              {documents.filter(doc => doc.isExisting).length > 0 && (
+                <div className="border border-gray-200 rounded-lg overflow-hidden">
+                  <div className="bg-gray-50 px-4 py-3 border-b border-gray-200">
+                    <h4 className="font-medium text-gray-900">Uploaded Documents</h4>
+                  </div>
+                  <div className="divide-y divide-gray-200">
+                    {documents.filter(doc => doc.isExisting).map((doc) => (
+                      <div key={doc.id} className="p-4 hover:bg-gray-50 transition-colors">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-3 flex-1">
+                            <div className="h-10 w-10 rounded-lg bg-blue-50 flex items-center justify-center">
+                              <FileText className="h-5 w-5 text-blue-600" />
                             </div>
-                          )}
+                            <div className="flex-1 min-w-0">
+                              <p className="font-medium text-gray-900 truncate">{doc.title}</p>
+                              <p className="text-sm text-gray-500">{doc.documentType}</p>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            {doc.preview && (
+                              <Button
+                                type="button"
+                                variant="outline"
+                                size="sm"
+                                onClick={() => window.open(doc.preview, '_blank')}
+                                className="h-8"
+                              >
+                                <Eye className="h-3.5 w-3.5 mr-1" />
+                                View
+                              </Button>
+                            )}
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              onClick={() => removeDocument(doc.id)}
+                              className="h-8 text-red-600 hover:text-red-700 hover:bg-red-50"
+                            >
+                              <Trash2 className="h-3.5 w-3.5 mr-1" />
+                              Delete
+                            </Button>
+                          </div>
                         </div>
-                        <input
-                          id={`doc-${doc.id}`}
-                          type="file"
-                          accept=".pdf,.jpg,.jpeg,.png"
-                          className="hidden"
-                          onChange={(e) => handleDocumentFileChange(doc.id, e)}
-                        />
-                        <p className="text-xs text-gray-500">PDF, JPG, PNG up to 10MB</p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* New Documents Form */}
+              {documents.filter(doc => !doc.isExisting).length > 0 && (
+                <div className="space-y-4">
+                  <div className="bg-blue-50 px-4 py-3 rounded-lg border border-blue-200">
+                    <h4 className="font-medium text-blue-900">New Documents to Upload</h4>
+                  </div>
+                  {documents.filter(doc => !doc.isExisting).map((doc) => (
+                    <div key={doc.id} className="border border-gray-200 rounded-lg p-4 bg-white">
+                      <div className="flex items-center justify-between mb-4">
+                        <h4 className="font-medium text-gray-900">Document #{doc.id.slice(-4)}</h4>
+                        <Button 
+                          type="button" 
+                          variant="outline" 
+                          size="sm"
+                          onClick={() => {
+                            removeDocument(doc.id);
+                            if (documents.filter(d => !d.isExisting).length === 1) {
+                              setShowAddDocumentForm(false);
+                            }
+                          }}
+                        >
+                          <X className="h-4 w-4" />
+                        </Button>
+                      </div>
+                      
+                      <div className="grid gap-4 md:grid-cols-2">
+                        <div className="space-y-2">
+                          <Label>Document Type *</Label>
+                          <Select
+                            value={doc.documentType}
+                            onValueChange={(value) => updateDocument(doc.id, 'documentType', value)}
+                          >
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select document type" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="Contract">Employment Contract</SelectItem>
+                              <SelectItem value="License Copy">Medical License</SelectItem>
+                              <SelectItem value="License Copy">Professional License Copy</SelectItem>
+                              <SelectItem value="ID Copy">Government ID Copy</SelectItem>
+                              <SelectItem value="Insurance">Insurance Documents</SelectItem>
+                              <SelectItem value="Certification">Background Check</SelectItem>
+                              <SelectItem value="Certification">Certifications</SelectItem>
+                              <SelectItem value="Other">Other Documents</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        
+                        <div className="space-y-2">
+                          <Label>Document Title/Name *</Label>
+                          <Input
+                            value={doc.title}
+                            onChange={(e) => updateDocument(doc.id, 'title', e.target.value)}
+                            placeholder="e.g., Employment Contract - John Doe"
+                          />
+                        </div>
+                        
+                        <div className="space-y-2 md:col-span-2">
+                          <Label>Upload File</Label>
+                          <div className="flex items-center gap-4">
+                            <Button
+                              type="button"
+                              variant="outline"
+                              onClick={() => document.getElementById(`doc-${doc.id}`)?.click()}
+                              className="flex items-center gap-2"
+                            >
+                              <Upload className="h-4 w-4" />
+                              Choose File
+                            </Button>
+                            {doc.preview && (
+                              <div className="flex items-center gap-2 text-sm text-gray-600">
+                                <FileText className="h-4 w-4" />
+                                {doc.preview}
+                              </div>
+                            )}
+                          </div>
+                          <input
+                            id={`doc-${doc.id}`}
+                            type="file"
+                            accept=".pdf,.jpg,.jpeg,.png"
+                            className="hidden"
+                            onChange={(e) => handleDocumentFileChange(doc.id, e)}
+                          />
+                          <p className="text-xs text-gray-500">PDF, JPG, PNG up to 10MB</p>
+                        </div>
                       </div>
                     </div>
-                  </div>
-                ))}
-                
-                {documents.length === 0 && (
-                  <div className="text-center py-8 text-gray-500">
-                    <FileText className="h-12 w-12 mx-auto mb-4 text-gray-300" />
-                    <p>No documents added yet</p>
-                    <p className="text-sm">Click "Add Document" to upload employee documents</p>
-                  </div>
-                )}
-              </div>
+                  ))}
+                </div>
+              )}
+              
+              {documents.length === 0 && (
+                <div className="text-center py-12 border-2 border-dashed border-gray-300 rounded-lg bg-gray-50">
+                  <FileText className="h-12 w-12 mx-auto mb-4 text-gray-400" />
+                  <p className="text-gray-900 font-medium mb-1">No documents uploaded yet</p>
+                  <p className="text-sm text-gray-500">Click "Add New Document" to upload employee documents</p>
+                </div>
+              )}
             </TabsContent>
 
             {/* TAB 3 - LICENSES & CERTIFICATIONS */}
