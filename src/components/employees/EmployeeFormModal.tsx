@@ -58,15 +58,23 @@ const licenseTypes: LicenseType[] = [
   'Other',
 ];
 
-const documentTypes: DocumentType[] = [
-  'Contract',
-  'License Copy',
-  'ID Copy',
-  'Insurance',
-  'Certification',
-  'Policy',
-  'Other',
-];
+// Function to get document types from localStorage
+const getDocumentTypes = (): DocumentType[] => {
+  const saved = localStorage.getItem('customDocumentTypes');
+  if (saved) {
+    return JSON.parse(saved);
+  }
+  // Default document types if none are saved
+  return [
+    'Contract',
+    'License Copy',
+    'ID Copy',
+    'Insurance',
+    'Certification',
+    'Policy',
+    'Other',
+  ];
+};
 
 interface DocumentUpload {
   id: string;
@@ -148,6 +156,14 @@ export const EmployeeFormModal = ({ open, onClose, employeeId }: EmployeeFormMod
   const [licenses, setLicenses] = useState<LicenseEntry[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showAddDocumentForm, setShowAddDocumentForm] = useState(false);
+  const [documentTypes, setDocumentTypes] = useState<DocumentType[]>(getDocumentTypes());
+
+  // Refresh document types when modal opens
+  useEffect(() => {
+    if (open) {
+      setDocumentTypes(getDocumentTypes());
+    }
+  }, [open]);
 
   const {
     register,
