@@ -75,7 +75,7 @@ export const DocumentFormModal = ({
     if (document) {
       reset({
         title: document.title || '',
-        documentType: document.document_type || '',
+        documentType: document.type || '',
         notes: document.notes || '',
       });
     } else {
@@ -93,7 +93,7 @@ export const DocumentFormModal = ({
 
       const documentData = {
         title: data.title,
-        document_type: data.documentType,
+        type: data.documentType,
         notes: data.notes || '',
       };
 

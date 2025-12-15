@@ -109,10 +109,11 @@ const EmployeeDocuments = () => {
         .insert([{
           employee_id: employeeId,
           title: title,
-          document_type: documentType,
+          type: documentType,
           file_url: publicUrl,
           file_size: file.size,
-          uploaded_by: user?.name || user?.email || 'employee'
+          uploaded_by: user?.name || user?.email || 'employee',
+          uploaded_at: new Date().toISOString()
         }]);
 
       if (insertError) throw insertError;
