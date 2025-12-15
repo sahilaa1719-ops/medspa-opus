@@ -112,8 +112,7 @@ const EmployeeDocuments = () => {
           file_url: publicUrl,
           file_name: file.name,
           file_size: file.size,
-          file_type: file.type,
-          status: 'active'
+          file_type: file.type
         }]);
 
       if (insertError) throw insertError;
