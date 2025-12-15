@@ -90,11 +90,21 @@ const Login = () => {
 
     setCheckingEmail(true);
     try {
-      // Simply show contact admin message without checking if user exists
-      // This prevents exposing which emails are in the system
-      toast.info('Please contact your administrator to reset your password', {
-        duration: 5000
+      // Send password reset email using Supabase Auth
+      const { error } = await supabase.auth.resetPasswordForEmail(forgotEmail, {
+        redirectTo: `${window.location.origin}/reset-password`,
       });
+
+      if (error) {
+        // Don't reveal if email exists or not for security
+        console.error('Password reset error:', error);
+      }
+      
+      // Always show success message (don't reveal if email exists)
+      toast.success('If an account exists with this email, a password reset link has been sent', {
+        duration: 6000
+      });
+      
       setForgotPasswordOpen(false);
       setForgotEmail('');
     } catch (error) {

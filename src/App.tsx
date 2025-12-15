@@ -8,6 +8,7 @@ import { DataProvider } from "@/context/DataContext";
 import { MainLayout } from "@/components/layout/MainLayout";
 import { EmployeeLayout } from "@/components/layout/EmployeeLayout";
 import Login from "./pages/Login";
+import ResetPassword from "./pages/ResetPassword";
 import Dashboard from "./pages/Dashboard";
 import EmployeeDashboard from "./pages/EmployeeDashboard";
 import EmployeeProfile from "./pages/EmployeeProfile";
@@ -60,6 +61,10 @@ const AppRoutes = () => {
       <Route
         path="/login"
         element={user ? <Navigate to={getRedirectPath()} replace /> : <Login />}
+      />
+      <Route
+        path="/reset-password"
+        element={<ResetPassword />}
       />
       
       {/* Admin Portal Routes */}
