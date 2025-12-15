@@ -34,6 +34,9 @@ const Employees = () => {
   const { employees, deleteEmployee, getEmployeeDeletionInfo } = useData();
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
+  const [locationFilter, setLocationFilter] = useState('all');
+  const [ageRangeFilter, setAgeRangeFilter] = useState('all');
+  const [locations, setLocations] = useState<Array<{ id: string; name: string }>>([]);
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [deletionInfo, setDeletionInfo] = useState<{ employee?: any; documentCount: number; licenseCount: number } | null>(null);
   const [isFormOpen, setIsFormOpen] = useState(false);
@@ -44,7 +47,22 @@ const Employees = () => {
 
   useEffect(() => {
     fetchAllPasswords();
+    fetchLocations();
   }, []);
+
+  const fetchLocations = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('locations')
+        .select('id, name')
+        .order('name');
+
+      if (error) throw error;
+      setLocations(data || []);
+    } catch (error) {
+      console.error('Error fetching locations:', error);
+    }
+  };
 
   const fetchAllPasswords = async () => {
     try {
@@ -89,7 +107,29 @@ const Employees = () => {
     const matchesStatus =
       statusFilter === 'all' || employee.status === statusFilter;
 
-    return matchesSearch && matchesStatus;
+    // Location filter
+    const matchesLocation = 
+      locationFilter === 'all' || 
+      employee.employee_locations?.some(el => el.location_id === locationFilter);
+
+    // Age range filter (calculate age from hire date as proxy)
+    const matchesAgeRange = () => {
+      if (ageRangeFilter === 'all') return true;
+      
+      const today = new Date();
+      const hireDate = new Date(employee.hireDate);
+      const yearsWithCompany = Math.floor((today.getTime() - hireDate.getTime()) / (365.25 * 24 * 60 * 60 * 1000));
+      
+      switch (ageRangeFilter) {
+        case '0-2': return yearsWithCompany >= 0 && yearsWithCompany <= 2;
+        case '3-5': return yearsWithCompany >= 3 && yearsWithCompany <= 5;
+        case '6-10': return yearsWithCompany >= 6 && yearsWithCompany <= 10;
+        case '10+': return yearsWithCompany > 10;
+        default: return true;
+      }
+    };
+
+    return matchesSearch && matchesStatus && matchesLocation && matchesAgeRange();
   });
 
   const handleDeleteClick = (id: string) => {
@@ -125,7 +165,7 @@ const Employees = () => {
       <div className="p-4 lg:p-6">
         {/* Filters */}
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-          <div className="flex flex-1 gap-4">
+          <div className="flex flex-1 flex-wrap gap-4">
             <div className="relative flex-1 max-w-md">
               <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
               <Input
@@ -143,6 +183,31 @@ const Employees = () => {
                 <SelectItem value="all">All Status</SelectItem>
                 <SelectItem value="active">Active</SelectItem>
                 <SelectItem value="inactive">Inactive</SelectItem>
+              </SelectContent>
+            </Select>
+            <Select value={locationFilter} onValueChange={setLocationFilter}>
+              <SelectTrigger className="w-40">
+                <SelectValue placeholder="Location" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Locations</SelectItem>
+                {locations.map((location) => (
+                  <SelectItem key={location.id} value={location.id}>
+                    {location.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Select value={ageRangeFilter} onValueChange={setAgeRangeFilter}>
+              <SelectTrigger className="w-40">
+                <SelectValue placeholder="Years Here" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Experience</SelectItem>
+                <SelectItem value="0-2">0-2 years</SelectItem>
+                <SelectItem value="3-5">3-5 years</SelectItem>
+                <SelectItem value="6-10">6-10 years</SelectItem>
+                <SelectItem value="10+">10+ years</SelectItem>
               </SelectContent>
             </Select>
           </div>
