@@ -1,14 +1,28 @@
 import { useState, useEffect } from 'react';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Award, Calendar, Hash, AlertCircle } from 'lucide-react';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Award, Calendar, Hash, AlertCircle, Upload } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/context/AuthContext';
+import { toast } from 'sonner';
 
 const EmployeeLicenses = () => {
   const { user } = useAuth();
   const [licenses, setLicenses] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [uploading, setUploading] = useState(false);
+  const [employeeId, setEmployeeId] = useState<string>('');
+  
+  // Upload form state
+  const [licenseType, setLicenseType] = useState('');
+  const [licenseNumber, setLicenseNumber] = useState('');
+  const [issuingAuthority, setIssuingAuthority] = useState('');
+  const [issueDate, setIssueDate] = useState('');
+  const [expiryDate, setExpiryDate] = useState('');
+  const [file, setFile] = useState<File | null>(null);
 
   useEffect(() => {
     fetchLicenses();
@@ -33,6 +47,8 @@ const EmployeeLicenses = () => {
       }
 
       if (employeeData) {
+        setEmployeeId(employeeData.id);
+        
         // Fetch licenses for this employee
         const { data: licensesData, error: licensesError } = await supabase
           .from('licenses')
@@ -76,6 +92,91 @@ const EmployeeLicenses = () => {
     }
   };
 
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      setFile(e.target.files[0]);
+    }
+  };
+
+  const handleUpload = async () => {
+    if (!licenseType || !licenseNumber || !issuingAuthority || !issueDate || !expiryDate || !employeeId) {
+      toast.error('Please fill all required fields');
+      return;
+    }
+
+    try {
+      setUploading(true);
+
+      let fileUrl = null;
+
+      // Upload file if provided
+      if (file) {
+        const fileExt = file.name.split('.').pop();
+        const fileName = `${employeeId}-${Date.now()}.${fileExt}`;
+        const filePath = `licenses/${fileName}`;
+
+        const { error: uploadError } = await supabase.storage
+          .from('employee-files')
+          .upload(filePath, file);
+
+        if (uploadError) throw uploadError;
+
+        // Get public URL
+        const { data: { publicUrl } } = supabase.storage
+          .from('employee-files')
+          .getPublicUrl(filePath);
+
+        fileUrl = publicUrl;
+      }
+
+      // Calculate status based on expiry date
+      const today = new Date();
+      const expiry = new Date(expiryDate);
+      const daysRemaining = Math.ceil((expiry.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+      
+      let status = 'active';
+      if (daysRemaining < 0) {
+        status = 'expired';
+      } else if (daysRemaining <= 30) {
+        status = 'pending';
+      }
+
+      // Insert license record
+      const { error: insertError } = await supabase
+        .from('licenses')
+        .insert([{
+          employee_id: employeeId,
+          license_type: licenseType,
+          license_number: licenseNumber,
+          issuing_authority: issuingAuthority,
+          issue_date: issueDate,
+          expiry_date: expiryDate,
+          status: status,
+          file_url: fileUrl
+        }]);
+
+      if (insertError) throw insertError;
+
+      toast.success('License uploaded successfully!');
+      
+      // Reset form
+      setLicenseType('');
+      setLicenseNumber('');
+      setIssuingAuthority('');
+      setIssueDate('');
+      setExpiryDate('');
+      setFile(null);
+      
+      // Refresh list
+      fetchLicenses();
+    } catch (error) {
+      console.error('Upload error:', error);
+      toast.error('Failed to upload license');
+    } finally {
+      setUploading(false);
+    }
+  };
+
   const getStatusBadge = (status: 'Valid' | 'Expiring Soon' | 'Expired') => {
     const variants = {
       Valid: 'bg-green-100 text-green-800 hover:bg-green-100',
@@ -96,9 +197,84 @@ const EmployeeLicenses = () => {
       <div>
         <h1 className="text-2xl font-bold text-gray-900">My Licenses</h1>
         <p className="text-sm text-gray-500 mt-1">
-          View your certifications and licenses
+          Upload and manage your certifications and licenses
         </p>
       </div>
+
+      {/* Upload Form */}
+      <Card className="border border-[#E5E7EB] bg-white shadow-sm">
+        <CardHeader>
+          <CardTitle className="text-lg font-semibold">Upload New License</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label>License Type *</Label>
+              <Input
+                placeholder="e.g., RN License, CPR Certification"
+                value={licenseType}
+                onChange={(e) => setLicenseType(e.target.value)}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label>License Number *</Label>
+              <Input
+                placeholder="e.g., RN-12345"
+                value={licenseNumber}
+                onChange={(e) => setLicenseNumber(e.target.value)}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label>Issuing Authority *</Label>
+              <Input
+                placeholder="e.g., State Board of Nursing"
+                value={issuingAuthority}
+                onChange={(e) => setIssuingAuthority(e.target.value)}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label>Issue Date *</Label>
+              <Input
+                type="date"
+                value={issueDate}
+                onChange={(e) => setIssueDate(e.target.value)}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label>Expiry Date *</Label>
+              <Input
+                type="date"
+                value={expiryDate}
+                onChange={(e) => setExpiryDate(e.target.value)}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label>Upload File (Optional)</Label>
+              <Input
+                type="file"
+                accept=".pdf,.jpg,.jpeg,.png"
+                onChange={handleFileChange}
+              />
+            </div>
+          </div>
+
+          <div className="mt-4">
+            <Button
+              onClick={handleUpload}
+              disabled={uploading}
+              className="bg-blue-600 hover:bg-blue-700"
+            >
+              <Upload className="h-4 w-4 mr-2" />
+              {uploading ? 'Uploading...' : 'Upload License'}
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
 
       {isLoading ? (
         <div className="text-center py-12 text-gray-500">
