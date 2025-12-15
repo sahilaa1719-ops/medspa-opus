@@ -56,7 +56,8 @@ const Documents = () => {
             full_name,
             email
           )
-        `);
+        `)
+        .order('uploaded_at', { ascending: false });
       
       if (docError) throw docError;
       setDocuments(docData || []);
@@ -76,11 +77,11 @@ const Documents = () => {
       const employee = doc.employees;
       const matchesSearch = searchQuery === '' || 
         doc.title?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        doc.type?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        doc.document_type?.toLowerCase().includes(searchQuery.toLowerCase()) ||
         employee?.full_name?.toLowerCase().includes(searchQuery.toLowerCase()) || false;
       
       const matchesEmployee = selectedEmployee === 'all' || doc.employee_id === selectedEmployee;
-      const matchesDocType = selectedDocumentType === 'all' || doc.type === selectedDocumentType;
+      const matchesDocType = selectedDocumentType === 'all' || doc.document_type === selectedDocumentType;
       
       return matchesSearch && matchesEmployee && matchesDocType;
     });
@@ -88,7 +89,7 @@ const Documents = () => {
 
   // Get unique document types for filter
   const documentTypes = useMemo(() => {
-    const types = new Set(documents.map(doc => doc.type).filter(Boolean));
+    const types = new Set(documents.map(doc => doc.document_type).filter(Boolean));
     return Array.from(types).sort();
   }, [documents]);
 
@@ -235,9 +236,9 @@ const Documents = () => {
                       <td className="px-6 py-4 text-[#374151]">
                         {employee?.full_name || 'Unknown'}
                       </td>
-                      <td className="px-6 py-4 text-[#374151]">{doc.type || 'N/A'}</td>
+                      <td className="px-6 py-4 text-[#374151]">{doc.document_type || 'N/A'}</td>
                       <td className="px-6 py-4 text-[#374151]">
-                        {doc.created_at ? format(new Date(doc.created_at), 'MMM d, yyyy') : 'N/A'}
+                        {doc.uploaded_at ? format(new Date(doc.uploaded_at), 'MMM d, yyyy') : 'N/A'}
                       </td>
                       <td className="px-6 py-4">
                         <div className="flex justify-end gap-2">

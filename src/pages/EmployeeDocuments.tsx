@@ -108,9 +108,12 @@ const EmployeeDocuments = () => {
         .insert([{
           employee_id: employeeId,
           title: title,
-          type: documentType,
+          document_type: documentType,
           file_url: publicUrl,
-          file_size: file.size
+          file_name: file.name,
+          file_size: file.size,
+          file_type: file.type,
+          status: 'active'
         }]);
 
       if (insertError) throw insertError;
@@ -270,10 +273,10 @@ const EmployeeDocuments = () => {
                           {doc.title}
                         </TableCell>
                         <TableCell className="text-gray-700">
-                          {doc.type}
+                          {doc.document_type}
                         </TableCell>
                         <TableCell className="text-gray-700">
-                          {doc.created_at ? new Date(doc.created_at).toLocaleDateString('en-US', {
+                          {doc.uploaded_at ? new Date(doc.uploaded_at).toLocaleDateString('en-US', {
                             year: 'numeric',
                             month: 'short',
                             day: 'numeric',
