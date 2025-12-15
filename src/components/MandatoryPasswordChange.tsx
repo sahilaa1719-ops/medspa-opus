@@ -57,25 +57,38 @@ export const MandatoryPasswordChange = () => {
     try {
       console.log('Attempting to update password for:', user?.email);
       
-      // Update password and mark first login as false
-      const { data, error: updateError } = await supabase
+      // First, try to update just the password
+      const { data: updateData, error: updateError } = await supabase
         .from('users')
         .update({ 
-          password_hash: newPassword,
-          is_first_login: false 
+          password_hash: newPassword
         })
-        .eq('email', user?.email);
+        .eq('email', user?.email)
+        .select();
 
-      console.log('Update result:', { data, error: updateError });
+      console.log('Password update result:', { data: updateData, error: updateError });
 
       if (updateError) {
         console.error('Password update error:', updateError);
         toast.error(`Failed to update password: ${updateError.message}`);
-      } else {
-        console.log('Password updated successfully');
-        toast.success('Password changed successfully! You can now access your account.');
-        updateUserFirstLogin(false);
+        setIsChanging(false);
+        return;
       }
+
+      // If password update succeeded, try to update is_first_login
+      const { error: firstLoginError } = await supabase
+        .from('users')
+        .update({ is_first_login: false })
+        .eq('email', user?.email);
+
+      if (firstLoginError) {
+        console.warn('Could not update first login flag:', firstLoginError);
+        // Don't fail if this doesn't work - password was still updated
+      }
+
+      console.log('Password updated successfully');
+      toast.success('Password changed successfully! You can now access your account.');
+      updateUserFirstLogin(false);
     } catch (error) {
       console.error('Unexpected error:', error);
       toast.error('An error occurred while changing password');
