@@ -19,7 +19,6 @@ import { Button } from '@/components/ui/button';
 import { Download, FileText, Receipt } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/context/AuthContext';
-import { Badge } from '@/components/ui/badge';
 
 const EmployeeTaxView = () => {
   const { user } = useAuth();
@@ -76,42 +75,12 @@ const EmployeeTaxView = () => {
     }
   };
 
-  const handleDownload = async (fileUrl: string, documentType: string, taxYear: number) => {
+  const handleDownload = (fileUrl: string) => {
     if (!fileUrl) {
       alert('No file available for download');
       return;
     }
-
-    try {
-      const response = await fetch(fileUrl);
-      const blob = await response.blob();
-      const url = window.URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = `${documentType}_${taxYear}.pdf`;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      window.URL.revokeObjectURL(url);
-    } catch (error) {
-      console.error('Download error:', error);
-      alert('Failed to download file');
-    }
-  };
-
-  const getStatusBadge = (status: string) => {
-    const variants: Record<string, string> = {
-      draft: 'bg-gray-100 text-gray-800 hover:bg-gray-100',
-      generated: 'bg-blue-100 text-blue-800 hover:bg-blue-100',
-      sent: 'bg-green-100 text-green-800 hover:bg-green-100',
-      filed: 'bg-purple-100 text-purple-800 hover:bg-purple-100',
-    };
-
-    return (
-      <Badge className={variants[status] || variants.draft}>
-        {status.charAt(0).toUpperCase() + status.slice(1)}
-      </Badge>
-    );
+    window.open(fileUrl, '_blank');
   };
 
   const filteredDocuments = selectedYear === 'all' 
@@ -182,10 +151,9 @@ const EmployeeTaxView = () => {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Document Type</TableHead>
+                    <TableHead>Document Name</TableHead>
                     <TableHead>Tax Year</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead>Generated Date</TableHead>
+                    <TableHead>Upload Date</TableHead>
                     <TableHead className="text-right">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -195,14 +163,13 @@ const EmployeeTaxView = () => {
                       <TableCell className="font-medium">
                         <div className="flex items-center gap-2">
                           <FileText className="h-4 w-4 text-gray-500" />
-                          {doc.document_type}
+                          {doc.document_name}
                         </div>
                       </TableCell>
                       <TableCell>{doc.tax_year}</TableCell>
-                      <TableCell>{getStatusBadge(doc.status)}</TableCell>
                       <TableCell>
-                        {doc.generated_at 
-                          ? new Date(doc.generated_at).toLocaleDateString('en-US', {
+                        {doc.uploaded_at 
+                          ? new Date(doc.uploaded_at).toLocaleDateString('en-US', {
                               year: 'numeric',
                               month: 'short',
                               day: 'numeric',
@@ -213,8 +180,8 @@ const EmployeeTaxView = () => {
                         <Button
                           variant="outline"
                           size="sm"
-                          onClick={() => handleDownload(doc.file_url, doc.document_type, doc.tax_year)}
-                          disabled={!doc.file_url || doc.status === 'draft'}
+                          onClick={() => handleDownload(doc.file_url)}
+                          disabled={!doc.file_url}
                           className="gap-2"
                         >
                           <Download className="h-4 w-4" />
