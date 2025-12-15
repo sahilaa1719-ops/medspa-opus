@@ -167,14 +167,6 @@ const Settings = () => {
     }
   };
 
-  const handleClearData = () => {
-    localStorage.removeItem('medspa_employees');
-    localStorage.removeItem('medspa_locations');
-    localStorage.removeItem('medspa_licenses');
-    localStorage.removeItem('medspa_documents');
-    toast.success('Data reset to defaults. Refresh to see changes.');
-  };
-
   return (
     <div className="min-h-screen">
       <Header title="Settings" />
@@ -407,23 +399,6 @@ const Settings = () => {
               </Button>
             </CardContent>
           </Card>
-
-          {/* Data Management */}
-          <div className="rounded-lg border border-[#E5E7EB] bg-white p-6 shadow-sm">
-            <h2 className="mb-4 text-lg font-semibold text-card-foreground">Data Management</h2>
-            <p className="mt-1 text-sm text-muted-foreground">
-              Manage your application data
-            </p>
-
-            <div className="mt-6">
-              <Button variant="outline" onClick={handleClearData} className="text-destructive hover:text-destructive">
-                Reset to Default Data
-              </Button>
-              <p className="mt-2 text-xs text-muted-foreground">
-                This will clear all custom data and restore the default sample data.
-              </p>
-            </div>
-          </div>
 
           {/* About */}
           <div className="rounded-xl border border-border bg-card p-6 shadow-sm">
