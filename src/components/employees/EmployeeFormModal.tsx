@@ -477,16 +477,17 @@ export const EmployeeFormModal = ({ open, onClose, employeeId }: EmployeeFormMod
         generatedPassword = generatePassword();
         
         try {
-          // Create user account in users table
-          const { error: userError } = await supabase
-            .from('users')
-            .insert([{
-              email: data.email,
-              password_hash: generatedPassword, // In production, this should be hashed
-              name: data.fullName,
+          // Create user account with Supabase Auth
+          const { data: authData, error: userError } = await supabase.auth.admin.createUser({
+            email: data.email,
+            password: generatedPassword,
+            email_confirm: true,
+            user_metadata: {
               role: 'employee',
-              is_first_login: true // New employees must change password on first login
-            }]);
+              name: data.fullName,
+              is_first_login: true
+            }
+          });
           
           if (userError) {
             console.error('Error creating user account:', userError);

@@ -90,14 +90,17 @@ const Login = () => {
 
     setCheckingEmail(true);
     try {
-      // Check if email exists in users table
-      const { data, error } = await supabase
-        .from('users')
-        .select('email, role')
-        .eq('email', forgotEmail)
-        .single();
+      // Check if email exists in Supabase Auth
+      const { data, error } = await supabase.auth.admin.listUsers();
 
-      if (error || !data) {
+      if (error) {
+        toast.error('An error occurred. Please try again.');
+        return;
+      }
+
+      const userExists = data.users.some(user => user.email === forgotEmail);
+
+      if (!userExists) {
         toast.error('Email not found in our system');
       } else {
         // Email exists, show contact admin message

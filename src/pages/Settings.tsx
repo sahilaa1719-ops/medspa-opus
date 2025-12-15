@@ -135,30 +135,22 @@ const Settings = () => {
 
     setIsChangingPassword(true);
     try {
-      // Verify current password
-      const { data: userData, error: verifyError } = await supabase
-        .from('users')
-        .select('password_hash')
-        .eq('email', user?.email)
-        .single();
+      // Verify current password by attempting to sign in
+      const { error: verifyError } = await supabase.auth.signInWithPassword({
+        email: user?.email || '',
+        password: currentPassword
+      });
 
-      if (verifyError || !userData) {
-        toast.error('Failed to verify current password');
-        setIsChangingPassword(false);
-        return;
-      }
-
-      if (userData.password_hash !== currentPassword) {
+      if (verifyError) {
         toast.error('Current password is incorrect');
         setIsChangingPassword(false);
         return;
       }
 
-      // Update password
-      const { error: updateError } = await supabase
-        .from('users')
-        .update({ password_hash: newPassword })
-        .eq('email', user?.email);
+      // Update password using Supabase Auth
+      const { error: updateError } = await supabase.auth.updateUser({
+        password: newPassword
+      });
 
       if (updateError) {
         toast.error('Failed to update password');
