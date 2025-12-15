@@ -8,4 +8,8 @@ if (!supabaseUrl || !supabaseAnonKey) {
   console.log('Please add VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY to your .env file')
 }
 
+console.log('Initializing Supabase client...', { url: supabaseUrl });
+
 export const supabase = createClient(supabaseUrl, supabaseAnonKey)
+
+console.log('Supabase client initialized successfully');
