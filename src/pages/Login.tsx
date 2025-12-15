@@ -90,24 +90,42 @@ const Login = () => {
 
     setCheckingEmail(true);
     try {
-      // Send password reset email using Supabase Auth
-      const { error } = await supabase.auth.resetPasswordForEmail(forgotEmail, {
-        redirectTo: `${window.location.origin}/reset-password`,
-      });
+      // Check if email belongs to an employee (employees have entries in employees table)
+      const { data: employeeData } = await supabase
+        .from('employees')
+        .select('email')
+        .eq('email', forgotEmail)
+        .single();
 
-      if (error) {
-        // Don't reveal if email exists or not for security
-        console.error('Password reset error:', error);
+      // If email is NOT in employees table, assume it's admin/payroll and send reset email
+      if (!employeeData) {
+        const { error } = await supabase.auth.resetPasswordForEmail(forgotEmail, {
+          redirectTo: `${window.location.origin}/reset-password`,
+        });
+
+        if (error) {
+          console.error('Password reset error:', error);
+        }
+        
+        toast.success('A password reset link has been sent to your email', {
+          duration: 6000
+        });
+      } else {
+        // For employees, show message to contact admin
+        toast.info('Please contact your administrator to reset your password', {
+          duration: 6000
+        });
       }
-      
-      // Always show success message (don't reveal if email exists)
-      toast.success('If an account exists with this email, a password reset link has been sent', {
-        duration: 6000
-      });
       
       setForgotPasswordOpen(false);
       setForgotEmail('');
     } catch (error) {
+      console.error('Forgot password error:', error);
+      toast.error('An error occurred. Please try again.');
+    } finally {
+      setCheckingEmail(false);
+    }
+  };
       toast.error('An error occurred. Please try again.');
     } finally {
       setCheckingEmail(false);
