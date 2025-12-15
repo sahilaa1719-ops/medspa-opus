@@ -18,7 +18,6 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { supabase } from '@/lib/supabase';
-import { supabaseAdmin } from '@/lib/supabaseAdmin';
 
 const Login = () => {
   const [email, setEmail] = useState('');
@@ -91,26 +90,13 @@ const Login = () => {
 
     setCheckingEmail(true);
     try {
-      // Check if email exists in Supabase Auth
-      const { data, error } = await supabaseAdmin.auth.admin.listUsers();
-
-      if (error) {
-        toast.error('An error occurred. Please try again.');
-        return;
-      }
-
-      const userExists = data.users.some(user => user.email === forgotEmail);
-
-      if (!userExists) {
-        toast.error('Email not found in our system');
-      } else {
-        // Email exists, show contact admin message
-        toast.info('Please contact your administrator to reset your password', {
-          duration: 5000
-        });
-        setForgotPasswordOpen(false);
-        setForgotEmail('');
-      }
+      // Simply show contact admin message without checking if user exists
+      // This prevents exposing which emails are in the system
+      toast.info('Please contact your administrator to reset your password', {
+        duration: 5000
+      });
+      setForgotPasswordOpen(false);
+      setForgotEmail('');
     } catch (error) {
       toast.error('An error occurred. Please try again.');
     } finally {
