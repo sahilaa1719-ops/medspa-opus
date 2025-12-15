@@ -6,8 +6,6 @@ import { StatsCard } from '@/components/ui/stats-card';
 import { StatusBadge } from '@/components/ui/status-badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { supabase } from '@/lib/supabase';
-import { checkAndSendLicenseReminders } from '@/lib/licenseReminderService';
-import { toast } from 'sonner';
 
 const Dashboard = () => {
   const [loading, setLoading] = useState(true);
@@ -23,17 +21,7 @@ const Dashboard = () => {
 
   useEffect(() => {
     fetchDashboardData();
-    // Check and send license reminders on dashboard load
-    checkLicenseReminders();
   }, []);
-
-  const checkLicenseReminders = async () => {
-    const result = await checkAndSendLicenseReminders();
-    if (result.sent > 0) {
-      toast.success(`Sent ${result.sent} license expiry reminder(s) to employees`);
-    }
-    console.log('License reminder check:', result);
-  };
 
   const fetchDashboardData = async () => {
     try {
