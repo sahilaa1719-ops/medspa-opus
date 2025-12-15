@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
+import { createClient } from '@supabase/supabase-js';
 import { Upload, X, FileText, Plus, Camera, User, Eye, Trash2, Download } from 'lucide-react';
 import {
   Dialog,
@@ -33,6 +34,12 @@ import { useData } from '@/context/DataContext';
 import { toast } from 'sonner';
 import { Position, LicenseType, DocumentType } from '@/types';
 import { supabase } from '@/lib/supabase';
+
+// Admin client for auth.admin operations
+const supabaseAdmin = createClient(
+  import.meta.env.VITE_SUPABASE_URL!,
+  import.meta.env.VITE_SUPABASE_SERVICE_ROLE_KEY!
+);
 
 const positions: Position[] = [
   'RN',
@@ -477,8 +484,8 @@ export const EmployeeFormModal = ({ open, onClose, employeeId }: EmployeeFormMod
         generatedPassword = generatePassword();
         
         try {
-          // Create user account with Supabase Auth
-          const { data: authData, error: userError } = await supabase.auth.admin.createUser({
+          // Create user account with Supabase Auth using admin client
+          const { data: authData, error: userError } = await supabaseAdmin.auth.admin.createUser({
             email: data.email,
             password: generatedPassword,
             email_confirm: true,
