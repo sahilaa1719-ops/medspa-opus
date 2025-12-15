@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
+import type { User as SupabaseUser } from '@supabase/supabase-js';
 
 interface User {
   email: string;
@@ -23,63 +24,115 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    // Check for existing session in localStorage
-    const storedUser = localStorage.getItem('medspa_user');
-    if (storedUser) {
-      try {
-        const parsedUser = JSON.parse(storedUser);
-        setUser(parsedUser);
-      } catch (error) {
-        console.error('Error parsing stored user:', error);
-        localStorage.removeItem('medspa_user');
+    // Check for existing Supabase session
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session?.user) {
+        const supabaseUser = session.user;
+        const role = supabaseUser.user_metadata?.role as 'admin' | 'employee' | 'payroll';
+        const name = supabaseUser.user_metadata?.name || supabaseUser.email || '';
+        const isFirstLogin = supabaseUser.user_metadata?.is_first_login ?? false;
+
+        setUser({
+          email: supabaseUser.email || '',
+          name,
+          role,
+          isFirstLogin
+        });
       }
-    }
-    setIsLoading(false);
+      setIsLoading(false);
+    });
+
+    // Listen for auth state changes
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (session?.user) {
+        const supabaseUser = session.user;
+        const role = supabaseUser.user_metadata?.role as 'admin' | 'employee' | 'payroll';
+        const name = supabaseUser.user_metadata?.name || supabaseUser.email || '';
+        const isFirstLogin = supabaseUser.user_metadata?.is_first_login ?? false;
+
+        setUser({
+          email: supabaseUser.email || '',
+          name,
+          role,
+          isFirstLogin
+        });
+      } else {
+        setUser(null);
+      }
+      setIsLoading(false);
+    });
+
+    return () => subscription.unsubscribe();
   }, []);
 
   const login = async (email: string, password: string): Promise<{ success: boolean; role?: 'admin' | 'employee' | 'payroll'; isFirstLogin?: boolean }> => {
     try {
-      // Query the users table directly (simple table-based auth for demo/MVP)
-      const { data: userData, error: userError } = await supabase
-        .from('users')
-        .select('*')
-        .eq('email', email)
-        .eq('password_hash', password)
-        .single();
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email,
+        password
+      });
 
-      if (userError || !userData) {
-        console.error('Login error:', userError);
+      if (error || !data.user) {
+        console.error('Login error:', error);
         return { success: false };
       }
 
-      const user: User = {
-        email: userData.email,
-        name: userData.name,
-        role: userData.role,
-        isFirstLogin: userData.is_first_login ?? true
-      };
+      const role = data.user.user_metadata?.role as 'admin' | 'employee' | 'payroll';
+      const name = data.user.user_metadata?.name || data.user.email || '';
+      const isFirstLogin = data.user.user_metadata?.is_first_login ?? false;
 
-      setUser(user);
-      localStorage.setItem('medspa_user', JSON.stringify(user));
+      setUser({
+        email: data.user.email || '',
+        name,
+        role,
+        isFirstLogin
+      });
 
-      return { success: true, role: userData.role, isFirstLogin: userData.is_first_login ?? true };
+      return { success: true, role, isFirstLogin };
     } catch (error) {
       console.error('Login error:', error);
       return { success: false };
     }
   };
 
-  const updateUserFirstLogin = (isFirstLogin: boolean) => {
-    if (user) {
-      const updatedUser = { ...user, isFirstLogin };
-      setUser(updatedUser);
-      localStorage.setItem('medspa_user', JSON.stringify(updatedUser));
+  const updateUserFirstLogin = async (isFirstLogin: boolean) => {
+    try {
+      const { data: { user: supabaseUser }, error } = await supabase.auth.getUser();
+      
+      if (error || !supabaseUser) {
+        console.error('Error getting user:', error);
+        return;
+      }
+
+      // Update user metadata
+      const { error: updateError } = await supabase.auth.updateUser({
+        data: {
+          ...supabaseUser.user_metadata,
+          is_first_login: isFirstLogin
+        }
+      });
+
+      if (updateError) {
+        console.error('Error updating user metadata:', updateError);
+        return;
+      }
+
+      // Update local state
+      if (user) {
+        setUser({ ...user, isFirstLogin });
+      }
+    } catch (error) {
+      console.error('Error updating first login status:', error);
     }
   };
 
-  const logout = () => {
-    setUser(null);
-    localStorage.removeItem('medspa_user');
+  const logout = async () => {
+    try {
+      await supabase.auth.signOut();
+      setUser(null);
+    } catch (error) {
+      console.error('Logout error:', error);
+    }
   };
 
   return (
