@@ -55,8 +55,10 @@ export const MandatoryPasswordChange = () => {
 
     setIsChanging(true);
     try {
+      console.log('Attempting to update password for:', user?.email);
+      
       // Update password and mark first login as false
-      const { error: updateError } = await supabase
+      const { data, error: updateError } = await supabase
         .from('users')
         .update({ 
           password_hash: newPassword,
@@ -64,13 +66,18 @@ export const MandatoryPasswordChange = () => {
         })
         .eq('email', user?.email);
 
+      console.log('Update result:', { data, error: updateError });
+
       if (updateError) {
-        toast.error('Failed to update password');
+        console.error('Password update error:', updateError);
+        toast.error(`Failed to update password: ${updateError.message}`);
       } else {
+        console.log('Password updated successfully');
         toast.success('Password changed successfully! You can now access your account.');
         updateUserFirstLogin(false);
       }
     } catch (error) {
+      console.error('Unexpected error:', error);
       toast.error('An error occurred while changing password');
     } finally {
       setIsChanging(false);
