@@ -36,12 +36,32 @@ const Settings = () => {
   const [isChangingPassword, setIsChangingPassword] = useState(false);
 
   // Password validation
+  const hasConsecutiveNumbers = (str: string) => {
+    for (let i = 0; i < str.length - 2; i++) {
+      const char1 = str[i];
+      const char2 = str[i + 1];
+      const char3 = str[i + 2];
+      
+      if (/\d/.test(char1) && /\d/.test(char2) && /\d/.test(char3)) {
+        const num1 = parseInt(char1);
+        const num2 = parseInt(char2);
+        const num3 = parseInt(char3);
+        
+        // Check for ascending sequence (123, 234, etc.)
+        if (num2 === num1 + 1 && num3 === num2 + 1) return true;
+        // Check for descending sequence (321, 432, etc.)
+        if (num2 === num1 - 1 && num3 === num2 - 1) return true;
+      }
+    }
+    return false;
+  };
+
   const passwordValidation = {
     minLength: newPassword.length >= 8,
     maxLength: newPassword.length <= 16,
     hasUpperCase: /[A-Z]/.test(newPassword),
     hasSpecialChar: /[!@#$%^&*(),.?":{}|<>]/.test(newPassword),
-    noConsecutiveNumbers: !/\d{2,}/.test(newPassword),
+    noConsecutiveNumbers: !hasConsecutiveNumbers(newPassword),
   };
 
   const isPasswordValid = Object.values(passwordValidation).every(Boolean) && newPassword === confirmPassword && newPassword.length > 0;
@@ -346,7 +366,7 @@ const Settings = () => {
                         <X className="h-4 w-4 text-red-600" />
                       )}
                       <span className={passwordValidation.noConsecutiveNumbers ? "text-green-600" : "text-red-600"}>
-                        No consecutive numbers
+                        No sequential numbers (e.g., 123, 456, 321)
                       </span>
                     </div>
                   </div>
