@@ -120,8 +120,8 @@ const Login = () => {
         <div className="rounded-lg border border-[#E5E7EB] bg-white p-8 shadow-sm">
           {/* Logo */}
           <div className="mb-8 flex flex-col items-center">
-            <div className="flex items-center justify-center bg-white rounded-lg p-2">
-              <img src="/logo.png" alt="Serene Aesthetics Logo" className="h-20 w-auto object-contain" />
+            <div className="flex items-center justify-center">
+              <img src="/logo.png?v=2" alt="Serene Aesthetics Logo" className="h-24 w-auto object-contain" />
             </div>
             <h1 className="mt-2 text-2xl font-bold text-card-foreground">MedSpa Pro</h1>
             <p className="mt-1 text-sm text-muted-foreground">Employee Management System</p>

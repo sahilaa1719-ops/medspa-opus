@@ -31,8 +31,8 @@ export const Sidebar = () => {
       <div className="flex h-full flex-col">
         {/* Logo */}
         <div className="flex h-16 items-center gap-3 border-b border-border px-6">
-          <div className="flex items-center justify-center bg-white rounded p-1">
-            <img src="/logo.png" alt="Serene Aesthetics Logo" className="h-8 w-auto object-contain" />
+          <div className="flex items-center justify-center">
+            <img src="/logo.png?v=2" alt="Serene Aesthetics Logo" className="h-10 w-auto object-contain" />
           </div>
           <span className="text-lg font-bold text-foreground">MedSpa Pro</span>
         </div>
