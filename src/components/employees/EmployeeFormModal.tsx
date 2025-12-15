@@ -105,10 +105,10 @@ interface EmergencyContact {
 const formSchema = z.object({
   // Basic Information
   fullName: z.string().min(1, 'Full name is required'),
-  email: z.string().email('Invalid email address'),
-  phone: z.string().optional(),
+  email: z.string().min(1, 'Email is required').email('Invalid email address'),
+  phone: z.string().min(1, 'Phone number is required'),
   position: z.string().min(1, 'Position is required'),
-  hireDate: z.string().optional(),
+  hireDate: z.string().min(1, 'Hire date is required'),
   status: z.boolean(),
   locationIds: z.array(z.string()).min(1, 'At least one location is required'),
   profilePhoto: z.any().optional(),
@@ -412,6 +412,28 @@ export const EmployeeFormModal = ({ open, onClose, employeeId }: EmployeeFormMod
     return password;
   };
 
+  // Handler for validation errors
+  const onError = (errors: any) => {
+    const missingFields: string[] = [];
+    
+    if (errors.fullName) missingFields.push('Full Name');
+    if (errors.email) missingFields.push('Email');
+    if (errors.phone) missingFields.push('Phone Number');
+    if (errors.position) missingFields.push('Position');
+    if (errors.hireDate) missingFields.push('Hire Date');
+    if (errors.locationIds) missingFields.push('Location');
+    if (errors.emergencyContact1?.name) missingFields.push('Emergency Contact Name');
+    if (errors.emergencyContact1?.phone) missingFields.push('Emergency Contact Phone');
+    if (errors.emergencyContact1?.relationship) missingFields.push('Emergency Contact Relationship');
+    
+    if (missingFields.length > 0) {
+      toast.error(
+        `Please fill in the following required fields:\n${missingFields.join(', ')}`,
+        { duration: 5000 }
+      );
+    }
+  };
+
   const onSubmit = async (data: FormData) => {
     setIsSubmitting(true);
     
@@ -574,7 +596,7 @@ export const EmployeeFormModal = ({ open, onClose, employeeId }: EmployeeFormMod
           console.log('Processing license:', license);
           
           // If license has a file, upload it
-          let licenseFileUrl = license.documentUrl || null;
+          let licenseFileUrl = null;
           
           if (license.file) {
             console.log('Uploading license file:', license.file.name);
@@ -656,7 +678,7 @@ export const EmployeeFormModal = ({ open, onClose, employeeId }: EmployeeFormMod
           </DialogTitle>
         </DialogHeader>
 
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+        <form onSubmit={handleSubmit(onSubmit, onError)} className="space-y-6">
           <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
             <TabsList className="grid w-full grid-cols-4">
               <TabsTrigger value="basic">Basic Info</TabsTrigger>
@@ -721,8 +743,11 @@ export const EmployeeFormModal = ({ open, onClose, employeeId }: EmployeeFormMod
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="phone">Phone Number</Label>
+                  <Label htmlFor="phone">Phone Number *</Label>
                   <Input id="phone" {...register('phone')} placeholder="(555) 123-4567" />
+                  {errors.phone && (
+                    <p className="text-xs text-destructive">{errors.phone.message}</p>
+                  )}
                 </div>
 
                 <div className="space-y-2">
@@ -748,8 +773,11 @@ export const EmployeeFormModal = ({ open, onClose, employeeId }: EmployeeFormMod
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="hireDate">Hire Date</Label>
+                  <Label htmlFor="hireDate">Hire Date *</Label>
                   <Input id="hireDate" type="date" {...register('hireDate')} />
+                  {errors.hireDate && (
+                    <p className="text-xs text-destructive">{errors.hireDate.message}</p>
+                  )}
                 </div>
 
                 <div className="flex items-center gap-3 pt-6">
