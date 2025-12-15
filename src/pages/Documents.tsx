@@ -56,8 +56,7 @@ const Documents = () => {
             full_name,
             email
           )
-        `)
-        .order('created_at', { ascending: false });
+        `);
       
       if (docError) throw docError;
       setDocuments(docData || []);

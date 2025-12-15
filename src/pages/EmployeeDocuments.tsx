@@ -59,8 +59,7 @@ const EmployeeDocuments = () => {
         const { data, error } = await supabase
           .from('documents')
           .select('*')
-          .eq('employee_id', employeeData.id)
-          .order('created_at', { ascending: false });
+          .eq('employee_id', employeeData.id);
 
         if (error) throw error;
         setDocuments(data || []);
@@ -111,9 +110,7 @@ const EmployeeDocuments = () => {
           title: title,
           type: documentType,
           file_url: publicUrl,
-          file_size: file.size,
-          uploaded_by: user?.name || user?.email || 'employee',
-          uploaded_at: new Date().toISOString()
+          file_size: file.size
         }]);
 
       if (insertError) throw insertError;
@@ -269,18 +266,18 @@ const EmployeeDocuments = () => {
                   <TableBody>
                     {documents.map((doc) => (
                       <TableRow key={doc.id} className="hover:bg-gray-50">
-                        <TableCell className="font-medium text-gray-900">
+                        <TableCell className="text-gray-700">
                           {doc.title}
                         </TableCell>
                         <TableCell className="text-gray-700">
-                          {doc.document_type}
+                          {doc.type}
                         </TableCell>
                         <TableCell className="text-gray-700">
-                          {new Date(doc.created_at).toLocaleDateString('en-US', {
+                          {doc.created_at ? new Date(doc.created_at).toLocaleDateString('en-US', {
                             year: 'numeric',
                             month: 'short',
                             day: 'numeric',
-                          })}
+                          }) : 'N/A'}
                         </TableCell>
                         <TableCell className="text-gray-700">
                           {doc.file_size ? `${(doc.file_size / 1024).toFixed(1)} KB` : 'N/A'}
