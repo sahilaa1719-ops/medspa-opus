@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Search, Plus, Eye, Pencil, Trash2, Copy } from 'lucide-react';
+import { Search, Plus, Eye, Pencil, Trash2, Copy, Key } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
+import { supabaseAdmin } from '@/lib/supabaseAdmin';
 import { Header } from '@/components/layout/Header';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -41,6 +42,8 @@ const Employees = () => {
   const [deletionInfo, setDeletionInfo] = useState<{ employee?: any; documentCount: number; licenseCount: number } | null>(null);
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingEmployee, setEditingEmployee] = useState<string | null>(null);
+  const [resetPasswordEmployee, setResetPasswordEmployee] = useState<{ id: string; email: string; fullName: string } | null>(null);
+  const [newPassword, setNewPassword] = useState<string>('');
 
 
   useEffect(() => {
@@ -126,6 +129,51 @@ const Employees = () => {
   const handleCloseForm = () => {
     setIsFormOpen(false);
     setEditingEmployee(null);
+  };
+
+  // Generate random password function
+  const generatePassword = () => {
+    const length = 12;
+    const charset = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*';
+    let password = '';
+    for (let i = 0; i < length; i++) {
+      password += charset.charAt(Math.floor(Math.random() * charset.length));
+    }
+    return password;
+  };
+
+  const handleResetPassword = async (employee: { id: string; email: string; fullName: string }) => {
+    try {
+      // Generate new password
+      const generatedPassword = generatePassword();
+
+      // Get the auth user by email
+      const { data: { users }, error: listError } = await supabaseAdmin.auth.admin.listUsers();
+      
+      if (listError) throw listError;
+
+      const authUser = users.find(u => u.email === employee.email);
+      if (!authUser) {
+        toast.error('Auth user not found for this employee');
+        return;
+      }
+
+      // Update the password using admin client
+      const { error: updateError } = await supabaseAdmin.auth.admin.updateUserById(
+        authUser.id,
+        { password: generatedPassword }
+      );
+
+      if (updateError) throw updateError;
+
+      // Show the new password to admin
+      setNewPassword(generatedPassword);
+      setResetPasswordEmployee(employee);
+      toast.success('Password reset successfully!');
+    } catch (error) {
+      console.error('Error resetting password:', error);
+      toast.error('Failed to reset password');
+    }
   };
 
   return (
@@ -256,6 +304,14 @@ const Employees = () => {
                 <Button
                   variant="ghost"
                   size="sm"
+                  onClick={() => handleResetPassword({ id: employee.id, email: employee.email, fullName: employee.fullName })}
+                  title="Reset Password"
+                >
+                  <Key className="h-4 w-4" />
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
                   onClick={() => handleDeleteClick(employee.id)}
                   className="text-destructive hover:text-destructive"
                   title="Delete Employee"
@@ -309,7 +365,46 @@ const Employees = () => {
         </AlertDialogContent>
       </AlertDialog>
 
-
+      {/* Password Reset Dialog */}
+      <AlertDialog open={!!resetPasswordEmployee} onOpenChange={() => {
+        setResetPasswordEmployee(null);
+        setNewPassword('');
+      }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Password Reset Successful</AlertDialogTitle>
+            <AlertDialogDescription>
+              A new password has been generated for <strong>{resetPasswordEmployee?.fullName}</strong>.
+              <br /><br />
+              <div className="bg-muted p-4 rounded-md my-4">
+                <div className="space-y-2">
+                  <div>
+                    <strong>Email:</strong> {resetPasswordEmployee?.email}
+                  </div>
+                  <div>
+                    <strong>New Password:</strong> <code className="bg-background px-2 py-1 rounded">{newPassword}</code>
+                  </div>
+                </div>
+              </div>
+              <p className="text-sm text-muted-foreground">
+                Please share these credentials securely with the employee. They will be prompted to change their password on first login.
+              </p>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => {
+                copyToClipboard(`Email: ${resetPasswordEmployee?.email}\nPassword: ${newPassword}`);
+              }}
+            >
+              <Copy className="h-4 w-4 mr-2" />
+              Copy Credentials
+            </Button>
+            <AlertDialogAction>Close</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {/* Employee Form Modal */}
       <EmployeeFormModal
