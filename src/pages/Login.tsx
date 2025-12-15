@@ -18,6 +18,7 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { supabase } from '@/lib/supabase';
+import { supabaseAdmin } from '@/lib/supabaseAdmin';
 
 const Login = () => {
   const [email, setEmail] = useState('');
@@ -91,7 +92,7 @@ const Login = () => {
     setCheckingEmail(true);
     try {
       // Check if email exists in Supabase Auth
-      const { data, error } = await supabase.auth.admin.listUsers();
+      const { data, error } = await supabaseAdmin.auth.admin.listUsers();
 
       if (error) {
         toast.error('An error occurred. Please try again.');
