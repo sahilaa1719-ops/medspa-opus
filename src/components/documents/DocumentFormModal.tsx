@@ -21,16 +21,7 @@ import {
 } from '@/components/ui/select';
 import { toast } from 'sonner';
 import { supabase } from '@/lib/supabase';
-
-const documentTypes = [
-  'Contract',
-  'License Copy',
-  'ID Copy',
-  'Insurance',
-  'Certification',
-  'Policy',
-  'Other',
-];
+import { DOCUMENT_TYPES } from '@/lib/constants';
 
 const formSchema = z.object({
   title: z.string().min(1, 'Document title is required'),
@@ -155,7 +146,7 @@ export const DocumentFormModal = ({
                 <SelectValue placeholder="Select document type" />
               </SelectTrigger>
               <SelectContent>
-                {documentTypes.map((type) => (
+                {DOCUMENT_TYPES.map((type) => (
                   <SelectItem key={type} value={type}>
                     {type}
                   </SelectItem>

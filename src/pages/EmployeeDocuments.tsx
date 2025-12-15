@@ -22,6 +22,7 @@ import { Download, Trash2, Upload } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/context/AuthContext';
 import { toast } from 'sonner';
+import { DOCUMENT_TYPES } from '@/lib/constants';
 
 const EmployeeDocuments = () => {
   const { user } = useAuth();
@@ -202,14 +203,14 @@ const EmployeeDocuments = () => {
               <Label>Document Type *</Label>
               <Select value={documentType} onValueChange={setDocumentType}>
                 <SelectTrigger>
-                  <SelectValue placeholder="Select type..." />
+                  <SelectValue placeholder="Select type" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="Resume">Resume</SelectItem>
-                  <SelectItem value="Certificate">Certificate</SelectItem>
-                  <SelectItem value="ID">ID</SelectItem>
-                  <SelectItem value="Contract">Contract</SelectItem>
-                  <SelectItem value="Other">Other</SelectItem>
+                  {DOCUMENT_TYPES.map((type) => (
+                    <SelectItem key={type} value={type}>
+                      {type}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>

@@ -18,21 +18,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { useData } from '@/context/DataContext';
 import { toast } from 'sonner';
 import { supabase } from '@/lib/supabase';
-
-const licenseTypes = [
-  'RN License',
-  'LPN License',
-  'Aesthetician License',
-  'Medical Director License',
-  'Botox Certification',
-  'Dermal Filler Certification',
-  'Laser Operator Certification',
-  'CPR Certification',
-  'First Aid Certification',
-  'Other',
-];
+import { LICENSE_TYPES } from '@/lib/constants';
 
 const formSchema = z.object({
   licenseType: z.string().min(1, 'License type is required'),
@@ -169,7 +158,7 @@ export const LicenseFormModal = ({
                 <SelectValue placeholder="Select license type" />
               </SelectTrigger>
               <SelectContent>
-                {licenseTypes.map((type) => (
+                {LICENSE_TYPES.map((type) => (
                   <SelectItem key={type} value={type}>
                     {type}
                   </SelectItem>

@@ -4,10 +4,12 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Award, Calendar, Hash, AlertCircle, Upload } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/context/AuthContext';
 import { toast } from 'sonner';
+import { LICENSE_TYPES } from '@/lib/constants';
 
 const EmployeeLicenses = () => {
   const { user } = useAuth();
@@ -210,11 +212,18 @@ const EmployeeLicenses = () => {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label>License Type *</Label>
-              <Input
-                placeholder="e.g., RN License, CPR Certification"
-                value={licenseType}
-                onChange={(e) => setLicenseType(e.target.value)}
-              />
+              <Select value={licenseType} onValueChange={setLicenseType}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select license type" />
+                </SelectTrigger>
+                <SelectContent>
+                  {LICENSE_TYPES.map((type) => (
+                    <SelectItem key={type} value={type}>
+                      {type}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
 
             <div className="space-y-2">
