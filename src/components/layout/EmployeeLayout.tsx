@@ -5,7 +5,6 @@ import {
   FileText, 
   Award, 
   Bell,
-  DollarSign,
   Receipt,
   Settings, 
   LogOut,
@@ -25,7 +24,6 @@ const navItems = [
   { to: '/employee-documents', icon: FileText, label: 'My Documents' },
   { to: '/employee-licenses', icon: Award, label: 'My Licenses' },
   { to: '/employee-announcements', icon: Bell, label: 'Announcements' },
-  { to: '/employee-payroll', icon: DollarSign, label: 'Payroll Info' },
   { to: '/employee-taxes', icon: Receipt, label: 'Taxes' },
   { to: '/employee-settings', icon: Settings, label: 'Settings' },
 ];
