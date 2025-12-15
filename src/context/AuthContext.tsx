@@ -5,13 +5,15 @@ interface User {
   email: string;
   name: string;
   role: 'admin' | 'employee' | 'payroll';
+  isFirstLogin?: boolean;
 }
 
 interface AuthContextType {
   user: User | null;
-  login: (email: string, password: string) => Promise<{ success: boolean; role?: 'admin' | 'employee' | 'payroll' }>
+  login: (email: string, password: string) => Promise<{ success: boolean; role?: 'admin' | 'employee' | 'payroll'; isFirstLogin?: boolean }>
   logout: () => void;
   isLoading: boolean;
+  updateUserFirstLogin: (isFirstLogin: boolean) => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -35,7 +37,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setIsLoading(false);
   }, []);
 
-  const login = async (email: string, password: string): Promise<{ success: boolean; role?: 'admin' | 'employee' | 'payroll' }> => {
+  const login = async (email: string, password: string): Promise<{ success: boolean; role?: 'admin' | 'employee' | 'payroll'; isFirstLogin?: boolean }> => {
     try {
       // Query the users table directly (simple table-based auth for demo/MVP)
       const { data: userData, error: userError } = await supabase
@@ -53,16 +55,25 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const user: User = {
         email: userData.email,
         name: userData.name,
-        role: userData.role
+        role: userData.role,
+        isFirstLogin: userData.is_first_login ?? true
       };
 
       setUser(user);
       localStorage.setItem('medspa_user', JSON.stringify(user));
 
-      return { success: true, role: userData.role };
+      return { success: true, role: userData.role, isFirstLogin: userData.is_first_login ?? true };
     } catch (error) {
       console.error('Login error:', error);
       return { success: false };
+    }
+  };
+
+  const updateUserFirstLogin = (isFirstLogin: boolean) => {
+    if (user) {
+      const updatedUser = { ...user, isFirstLogin };
+      setUser(updatedUser);
+      localStorage.setItem('medspa_user', JSON.stringify(updatedUser));
     }
   };
 
@@ -72,7 +83,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   return (
-    <AuthContext.Provider value={{ user, login, logout, isLoading }}>
+    <AuthContext.Provider value={{ user, login, logout, isLoading, updateUserFirstLogin }}>
       {children}
     </AuthContext.Provider>
   );

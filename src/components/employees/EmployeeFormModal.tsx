@@ -462,7 +462,8 @@ export const EmployeeFormModal = ({ open, onClose, employeeId }: EmployeeFormMod
               email: data.email,
               password_hash: generatedPassword, // In production, this should be hashed
               name: data.fullName,
-              role: 'employee'
+              role: 'employee',
+              is_first_login: true // New employees must change password on first login
             }]);
           
           if (userError) {
