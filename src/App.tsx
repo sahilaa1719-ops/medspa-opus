@@ -15,6 +15,7 @@ import EmployeeDocuments from "./pages/EmployeeDocuments";
 import EmployeeLicenses from "./pages/EmployeeLicenses";
 import EmployeeAnnouncements from "./pages/EmployeeAnnouncements";
 import EmployeeTaxes from "./pages/EmployeeTaxes";
+import EmployeeTaxView from "./pages/EmployeeTaxView";
 import EmployeeSettings from "./pages/EmployeeSettings";
 import Employees from "./pages/Employees";
 import EmployeeDetail from "./pages/EmployeeDetail";
@@ -135,6 +136,17 @@ const AppRoutes = () => {
         }
       >
         <Route index element={<EmployeeAnnouncements />} />
+      </Route>
+
+      <Route
+        path="/employee-taxes"
+        element={
+          <ProtectedRoute>
+            <EmployeeLayout />
+          </ProtectedRoute>
+        }
+      >
+        <Route index element={<EmployeeTaxView />} />
       </Route>
 
       <Route
