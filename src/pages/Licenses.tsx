@@ -1,13 +1,12 @@
 import { format } from 'date-fns';
-import { Award, Pencil, Trash2, Search, Filter } from 'lucide-react';
+import { Award, Pencil, Trash2, Search, Download, Edit } from 'lucide-react';
 import { Header } from '@/components/layout/Header';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { StatusBadge } from '@/components/ui/status-badge';
-import { useData } from '@/context/DataContext';
 import { useLicenseStatus } from '@/hooks/useLicenseStatus';
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -19,58 +18,104 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { toast } from 'sonner';
+import { supabase } from '@/lib/supabase';
+import { LicenseFormModal } from '@/components/licenses/LicenseFormModal';
 
 const Licenses = () => {
-  const { licenses, employees, locations, deleteLicense } = useData();
+  const [licenses, setLicenses] = useState<any[]>([]);
+  const [employees, setEmployees] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
   const { getLicenseStatus, getExpirationText } = useLicenseStatus();
   const [deleteId, setDeleteId] = useState<string | null>(null);
+  const [editingLicense, setEditingLicense] = useState<any | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedEmployee, setSelectedEmployee] = useState<string>('all');
   const [selectedStatus, setSelectedStatus] = useState<string>('all');
-  const [selectedLocation, setSelectedLocation] = useState<string>('all');
+
+  useEffect(() => {
+    fetchData();
+  }, []);
+
+  const fetchData = async () => {
+    try {
+      setLoading(true);
+      
+      // Fetch employees
+      const { data: empData, error: empError } = await supabase
+        .from('employees')
+        .select('id, full_name, email')
+        .order('full_name');
+      
+      if (empError) throw empError;
+      setEmployees(empData || []);
+
+      // Fetch licenses with employee info
+      const { data: licData, error: licError } = await supabase
+        .from('licenses')
+        .select(`
+          *,
+          employees:employee_id (
+            id,
+            full_name,
+            email
+          )
+        `)
+        .order('expiry_date', { ascending: true });
+      
+      if (licError) throw licError;
+      setLicenses(licData || []);
+    } catch (error) {
+      console.error('Error fetching data:', error);
+      toast.error('Failed to load licenses');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const getEmployeeById = (id: string) => employees.find((e) => e.id === id);
 
   const handleDelete = async () => {
-    if (deleteId) {
-      await deleteLicense(deleteId);
+    if (!deleteId) return;
+    
+    try {
+      const { error } = await supabase
+        .from('licenses')
+        .delete()
+        .eq('id', deleteId);
+
+      if (error) throw error;
+
       toast.success('License deleted successfully');
       setDeleteId(null);
+      fetchData();
+    } catch (error) {
+      console.error('Delete error:', error);
+      toast.error('Failed to delete license');
     }
   };
 
   // Filter and sort licenses
   const filteredAndSortedLicenses = useMemo(() => {
     let filtered = licenses.filter((license) => {
-      const employee = getEmployeeById(license.employeeId);
-      const status = getLicenseStatus(new Date(license.expiryDate));
+      const employee = license.employees;
+      const status = getLicenseStatus(new Date(license.expiry_date));
       
       const matchesSearch = searchQuery === '' || 
-        license.licenseType.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        license.licenseNumber.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        employee?.fullName.toLowerCase().includes(searchQuery.toLowerCase()) || false;
+        license.license_type?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        license.license_number?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        employee?.full_name?.toLowerCase().includes(searchQuery.toLowerCase()) || false;
       
-      const matchesEmployee = selectedEmployee === 'all' || license.employeeId === selectedEmployee;
+      const matchesEmployee = selectedEmployee === 'all' || license.employee_id === selectedEmployee;
       const matchesStatus = selectedStatus === 'all' || status === selectedStatus;
       
-      // Location filter - check if employee is assigned to selected location
-      const matchesLocation = selectedLocation === 'all' || 
-        (employee && employee.employee_locations?.some(el => el.location_id === selectedLocation));
-      
-      return matchesSearch && matchesEmployee && matchesStatus && matchesLocation;
+      return matchesSearch && matchesEmployee && matchesStatus;
     });
 
     // Sort by expiry date
     return filtered.sort((a, b) => {
-      return new Date(a.expiryDate).getTime() - new Date(b.expiryDate).getTime();
+      return new Date(a.expiry_date).getTime() - new Date(b.expiry_date).getTime();
     });
-  }, [licenses, searchQuery, selectedEmployee, selectedStatus, selectedLocation, employees, getLicenseStatus]);
-
-  // Get unique license types for potential future filtering
-  const licenseTypes = useMemo(() => {
-    const types = new Set(licenses.map(license => license.licenseType));
-    return Array.from(types).sort();
-  }, [licenses]);
+  }, [licenses, searchQuery, selectedEmployee, selectedStatus, getLicenseStatus]);
 
   return (
     <div className="min-h-screen">
@@ -100,7 +145,7 @@ const Licenses = () => {
                 <SelectItem value="all">All Employees</SelectItem>
                 {employees.map((employee) => (
                   <SelectItem key={employee.id} value={employee.id}>
-                    {employee.fullName}
+                    {employee.full_name}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -115,20 +160,6 @@ const Licenses = () => {
                 <SelectItem value="valid">Valid</SelectItem>
                 <SelectItem value="expiring">Expiring Soon</SelectItem>
                 <SelectItem value="expired">Expired</SelectItem>
-              </SelectContent>
-            </Select>
-
-            <Select value={selectedLocation} onValueChange={setSelectedLocation}>
-              <SelectTrigger className="w-full sm:w-[200px]">
-                <SelectValue placeholder="Filter by location" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Locations</SelectItem>
-                {locations.map((location) => (
-                  <SelectItem key={location.id} value={location.id}>
-                    {location.name}
-                  </SelectItem>
-                ))}
               </SelectContent>
             </Select>
           </div>
@@ -150,9 +181,8 @@ const Licenses = () => {
                   setSearchQuery('');
                   setSelectedEmployee('all');
                   setSelectedStatus('all');
-                  setSelectedLocation('all');
                 }}
-                className="mt-2"
+                className="mt-2">
               >
                 Clear Filters
               </Button>
@@ -185,8 +215,8 @@ const Licenses = () => {
               </thead>
               <tbody>
                 {filteredAndSortedLicenses.map((license) => {
-                  const employee = getEmployeeById(license.employeeId);
-                  const status = getLicenseStatus(new Date(license.expiryDate));
+                  const employee = license.employees;
+                  const status = getLicenseStatus(new Date(license.expiry_date));
 
                   return (
                     <tr key={license.id} className="border-b border-[#E5E7EB] last:border-0 bg-white hover:bg-[#F9FAFB] transition-colors">
@@ -197,30 +227,48 @@ const Licenses = () => {
                           </div>
                           <div>
                             <p className="font-medium text-[#374151]">
-                              {license.licenseType}
+                              {license.license_type}
                             </p>
                             <p className="text-sm text-muted-foreground">
-                              #{license.licenseNumber}
+                              #{license.license_number}
                             </p>
                           </div>
                         </div>
                       </td>
                       <td className="px-6 py-4 text-[#374151]">
-                        {employee?.fullName || 'Unknown'}
+                        {employee?.full_name || 'Unknown'}
                       </td>
                       <td className="px-6 py-4 text-[#374151]">
-                        {format(new Date(license.issueDate), 'MMM d, yyyy')}
+                        {format(new Date(license.issue_date), 'MMM d, yyyy')}
                       </td>
                       <td className="px-6 py-4 text-[#374151]">
-                        {format(new Date(license.expiryDate), 'MMM d, yyyy')}
+                        {format(new Date(license.expiry_date), 'MMM d, yyyy')}
                       </td>
                       <td className="px-6 py-4">
                         <StatusBadge status={status}>
-                          {getExpirationText(new Date(license.expiryDate))}
+                          {getExpirationText(new Date(license.expiry_date))}
                         </StatusBadge>
                       </td>
                       <td className="px-6 py-4">
                         <div className="flex justify-end gap-2">
+                          {license.file_url && (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => window.open(license.file_url, '_blank')}
+                              className="text-primary hover:text-primary"
+                            >
+                              <Download className="h-4 w-4" />
+                            </Button>
+                          )}
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => setEditingLicense(license)}
+                            className="text-primary hover:text-primary"
+                          >
+                            <Edit className="h-4 w-4" />
+                          </Button>
                           <Button
                             variant="ghost"
                             size="sm"
@@ -257,6 +305,17 @@ const Licenses = () => {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Edit License Modal */}
+      {editingLicense && (
+        <LicenseFormModal
+          license={editingLicense}
+          onClose={() => {
+            setEditingLicense(null);
+            fetchData();
+          }}
+        />
+      )}
     </div>
   );
 };

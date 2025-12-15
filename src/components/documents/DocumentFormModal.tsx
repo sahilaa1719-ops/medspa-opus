@@ -1,6 +1,7 @@
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
+import { useEffect, useState } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -18,8 +19,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { useData } from '@/context/DataContext';
 import { toast } from 'sonner';
+import { supabase } from '@/lib/supabase';
 
 const documentTypes = [
   'Contract',
@@ -40,17 +41,19 @@ const formSchema = z.object({
 type FormData = z.infer<typeof formSchema>;
 
 interface DocumentFormModalProps {
-  open: boolean;
+  document?: any | null;
+  open?: boolean;
   onClose: () => void;
-  employeeId: string;
+  employeeId?: string;
 }
 
 export const DocumentFormModal = ({
+  document,
   open,
   onClose,
   employeeId,
 }: DocumentFormModalProps) => {
-  const { addDocument } = useData();
+  const [saving, setSaving] = useState(false);
 
   const {
     register,
@@ -68,26 +71,69 @@ export const DocumentFormModal = ({
     },
   });
 
-  const onSubmit = (data: FormData) => {
-    addDocument({
-      employeeId,
-      title: data.title,
-      documentType: data.documentType,
-      fileUrl: '',
-      fileName: `${data.title.toLowerCase().replace(/\s+/g, '_')}.pdf`,
-      notes: data.notes || '',
-    });
-    
-    toast.success('Document added successfully');
-    reset();
-    onClose();
+  useEffect(() => {
+    if (document) {
+      reset({
+        title: document.title || '',
+        documentType: document.document_type || '',
+        notes: document.notes || '',
+      });
+    } else {
+      reset({
+        title: '',
+        documentType: '',
+        notes: '',
+      });
+    }
+  }, [document, reset]);
+
+  const onSubmit = async (data: FormData) => {
+    try {
+      setSaving(true);
+
+      const documentData = {
+        title: data.title,
+        document_type: data.documentType,
+        notes: data.notes || '',
+      };
+
+      if (document) {
+        // Edit existing document
+        const { error } = await supabase
+          .from('documents')
+          .update(documentData)
+          .eq('id', document.id);
+
+        if (error) throw error;
+        toast.success('Document updated successfully');
+      } else if (employeeId) {
+        // Add new document (simplified - just metadata, no file upload here)
+        const { error } = await supabase
+          .from('documents')
+          .insert({
+            ...documentData,
+            employee_id: employeeId,
+            uploaded_by: employeeId,
+          });
+
+        if (error) throw error;
+        toast.success('Document added successfully');
+      }
+
+      onClose();
+    } catch (error: any) {
+      console.error('Error saving document:', error);
+      toast.error(error.message || 'Failed to save document');
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
-    <Dialog open={open} onOpenChange={onClose}>
+    <Dialog open={open !== undefined ? open : !!document} onOpenChange={onClose}>
       <DialogContent className="max-w-md">
         <DialogHeader>
-          <DialogTitle>Upload Document</DialogTitle>
+          <DialogTitle>{document ? 'Edit Document' : 'Upload Document'}</DialogTitle>
         </DialogHeader>
 
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
@@ -131,10 +177,12 @@ export const DocumentFormModal = ({
           </div>
 
           <div className="flex justify-end gap-3 pt-4">
-            <Button type="button" variant="outline" onClick={onClose}>
+            <Button type="button" variant="outline" onClick={onClose} disabled={saving}>
               Cancel
             </Button>
-            <Button type="submit">Upload Document</Button>
+            <Button type="submit" disabled={saving}>
+              {saving ? (document ? 'Updating...' : 'Adding...') : (document ? 'Update Document' : 'Add Document')}
+            </Button>
           </div>
         </form>
       </DialogContent>

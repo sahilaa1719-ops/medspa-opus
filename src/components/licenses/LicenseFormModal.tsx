@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -18,8 +18,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { useData } from '@/context/DataContext';
 import { toast } from 'sonner';
+import { supabase } from '@/lib/supabase';
 
 const licenseTypes = [
   'RN License',
@@ -44,20 +44,21 @@ const formSchema = z.object({
 type FormData = z.infer<typeof formSchema>;
 
 interface LicenseFormModalProps {
-  open: boolean;
+  license?: any | null;
+  open?: boolean;
   onClose: () => void;
-  employeeId: string;
+  employeeId?: string;
   licenseId?: string | null;
 }
 
 export const LicenseFormModal = ({
+  license,
   open,
   onClose,
   employeeId,
   licenseId,
 }: LicenseFormModalProps) => {
-  const { licenses, addLicense, updateLicense } = useData();
-  const license = licenseId ? licenses.find((l) => l.id === licenseId) : null;
+  const [saving, setSaving] = useState(false);
 
   const {
     register,
@@ -79,13 +80,13 @@ export const LicenseFormModal = ({
   useEffect(() => {
     if (license) {
       reset({
-        licenseType: license.licenseType,
-        licenseNumber: license.licenseNumber || '',
-        issueDate: license.issueDate
-          ? new Date(license.issueDate).toISOString().split('T')[0]
+        licenseType: license.license_type,
+        licenseNumber: license.license_number || '',
+        issueDate: license.issue_date
+          ? new Date(license.issue_date).toISOString().split('T')[0]
           : '',
-        expiryDate: license.expiryDate
-          ? new Date(license.expiryDate).toISOString().split('T')[0]
+        expiryDate: license.expiry_date
+          ? new Date(license.expiry_date).toISOString().split('T')[0]
           : '',
       });
     } else {
@@ -98,31 +99,63 @@ export const LicenseFormModal = ({
     }
   }, [license, reset]);
 
-  const onSubmit = (data: FormData) => {
-    const licenseData = {
-      employeeId,
-      licenseType: data.licenseType,
-      licenseNumber: data.licenseNumber || '',
-      issueDate: data.issueDate ? new Date(data.issueDate) : new Date(),
-      expiryDate: new Date(data.expiryDate),
-      documentUrl: '',
-    };
+  const onSubmit = async (data: FormData) => {
+    try {
+      setSaving(true);
 
-    if (licenseId) {
-      updateLicense(licenseId, licenseData);
-      toast.success('License updated successfully');
-    } else {
-      addLicense(licenseData);
-      toast.success('License added successfully');
+      // Calculate status based on expiry date
+      const expiryDate = new Date(data.expiryDate);
+      const today = new Date();
+      const daysRemaining = Math.ceil((expiryDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+      let status = 'active';
+      if (daysRemaining < 0) status = 'expired';
+      else if (daysRemaining <= 30) status = 'pending';
+
+      const licenseData = {
+        license_type: data.licenseType,
+        license_number: data.licenseNumber || '',
+        issue_date: data.issueDate ? data.issueDate : new Date().toISOString().split('T')[0],
+        expiry_date: data.expiryDate,
+        status: status,
+      };
+
+      if (license || licenseId) {
+        // Edit existing license
+        const id = license?.id || licenseId;
+        const { error } = await supabase
+          .from('licenses')
+          .update(licenseData)
+          .eq('id', id);
+
+        if (error) throw error;
+        toast.success('License updated successfully');
+      } else if (employeeId) {
+        // Add new license
+        const { error } = await supabase
+          .from('licenses')
+          .insert({
+            ...licenseData,
+            employee_id: employeeId,
+          });
+
+        if (error) throw error;
+        toast.success('License added successfully');
+      }
+
+      onClose();
+    } catch (error: any) {
+      console.error('Error saving license:', error);
+      toast.error(error.message || 'Failed to save license');
+    } finally {
+      setSaving(false);
     }
-    onClose();
   };
 
   return (
-    <Dialog open={open} onOpenChange={onClose}>
+    <Dialog open={open !== undefined ? open : !!license} onOpenChange={onClose}>
       <DialogContent className="max-w-md">
         <DialogHeader>
-          <DialogTitle>{licenseId ? 'Edit License' : 'Add License'}</DialogTitle>
+          <DialogTitle>{license || licenseId ? 'Edit License' : 'Add License'}</DialogTitle>
         </DialogHeader>
 
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
@@ -167,11 +200,11 @@ export const LicenseFormModal = ({
           </div>
 
           <div className="flex justify-end gap-3 pt-4">
-            <Button type="button" variant="outline" onClick={onClose}>
+            <Button type="button" variant="outline" onClick={onClose} disabled={saving}>
               Cancel
             </Button>
-            <Button type="submit">
-              {licenseId ? 'Update License' : 'Add License'}
+            <Button type="submit" disabled={saving}>
+              {saving ? ((license || licenseId) ? 'Updating...' : 'Adding...') : ((license || licenseId) ? 'Update License' : 'Add License')}
             </Button>
           </div>
         </form>

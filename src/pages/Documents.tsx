@@ -1,11 +1,10 @@
 import { format } from 'date-fns';
-import { FileText, Download, Trash2, Search, Filter } from 'lucide-react';
+import { FileText, Download, Trash2, Search, Edit } from 'lucide-react';
 import { Header } from '@/components/layout/Header';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { useData } from '@/context/DataContext';
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -17,44 +16,109 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { toast } from 'sonner';
+import { supabase } from '@/lib/supabase';
+import { DocumentFormModal } from '@/components/documents/DocumentFormModal';
 
 const Documents = () => {
-  const { documents, employees, deleteDocument } = useData();
+  const [documents, setDocuments] = useState<any[]>([]);
+  const [employees, setEmployees] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
   const [deleteId, setDeleteId] = useState<string | null>(null);
+  const [editingDocument, setEditingDocument] = useState<any | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedEmployee, setSelectedEmployee] = useState<string>('all');
   const [selectedDocumentType, setSelectedDocumentType] = useState<string>('all');
+
+  useEffect(() => {
+    fetchData();
+  }, []);
+
+  const fetchData = async () => {
+    try {
+      setLoading(true);
+      
+      // Fetch employees
+      const { data: empData, error: empError } = await supabase
+        .from('employees')
+        .select('id, full_name, email')
+        .order('full_name');
+      
+      if (empError) throw empError;
+      setEmployees(empData || []);
+
+      // Fetch documents with employee info
+      const { data: docData, error: docError } = await supabase
+        .from('documents')
+        .select(`
+          *,
+          employees:employee_id (
+            id,
+            full_name,
+            email
+          )
+        `)
+        .order('created_at', { ascending: false });
+      
+      if (docError) throw docError;
+      setDocuments(docData || []);
+    } catch (error) {
+      console.error('Error fetching data:', error);
+      toast.error('Failed to load documents');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const getEmployeeById = (id: string) => employees.find((e) => e.id === id);
 
   // Filter documents based on search and filters
   const filteredDocuments = useMemo(() => {
     return documents.filter((doc) => {
-      const employee = getEmployeeById(doc.employeeId);
+      const employee = doc.employees;
       const matchesSearch = searchQuery === '' || 
-        doc.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        doc.fileName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        employee?.fullName.toLowerCase().includes(searchQuery.toLowerCase()) || false;
+        doc.title?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        doc.document_type?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        employee?.full_name?.toLowerCase().includes(searchQuery.toLowerCase()) || false;
       
-      const matchesEmployee = selectedEmployee === 'all' || doc.employeeId === selectedEmployee;
-      const matchesDocType = selectedDocumentType === 'all' || doc.documentType === selectedDocumentType;
+      const matchesEmployee = selectedEmployee === 'all' || doc.employee_id === selectedEmployee;
+      const matchesDocType = selectedDocumentType === 'all' || doc.document_type === selectedDocumentType;
       
       return matchesSearch && matchesEmployee && matchesDocType;
     });
-  }, [documents, searchQuery, selectedEmployee, selectedDocumentType, employees]);
+  }, [documents, searchQuery, selectedEmployee, selectedDocumentType]);
 
   // Get unique document types for filter
   const documentTypes = useMemo(() => {
-    const types = new Set(documents.map(doc => doc.documentType));
+    const types = new Set(documents.map(doc => doc.document_type).filter(Boolean));
     return Array.from(types).sort();
   }, [documents]);
 
-  const handleDelete = () => {
-    if (deleteId) {
-      deleteDocument(deleteId);
+  const handleDelete = async () => {
+    if (!deleteId) return;
+    
+    try {
+      const { error } = await supabase
+        .from('documents')
+        .delete()
+        .eq('id', deleteId);
+
+      if (error) throw error;
+
       toast.success('Document deleted successfully');
       setDeleteId(null);
+      fetchData();
+    } catch (error) {
+      console.error('Delete error:', error);
+      toast.error('Failed to delete document');
     }
+  };
+
+  const handleDownload = (fileUrl: string, title: string) => {
+    if (!fileUrl) {
+      toast.error('No file URL available');
+      return;
+    }
+    window.open(fileUrl, '_blank');
   };
 
   return (
@@ -82,7 +146,7 @@ const Documents = () => {
               <SelectItem value="all">All Employees</SelectItem>
               {employees.map((employee) => (
                 <SelectItem key={employee.id} value={employee.id}>
-                  {employee.fullName}
+                  {employee.full_name}
                 </SelectItem>
               ))}
             </SelectContent>
@@ -102,7 +166,11 @@ const Documents = () => {
             </SelectContent>
           </Select>
         </div>
-        {filteredDocuments.length === 0 ? (
+        {loading ? (
+          <div className="rounded-lg border border-[#E5E7EB] bg-white p-12 text-center">
+            <p className="text-muted-foreground">Loading documents...</p>
+          </div>
+        ) : filteredDocuments.length === 0 ? (
           documents.length === 0 ? (
           <div className="rounded-lg border border-[#E5E7EB] bg-white p-12 text-center">
             <FileText className="mx-auto h-12 w-12 text-muted-foreground" />
@@ -149,7 +217,7 @@ const Documents = () => {
               </thead>
               <tbody>
                 {filteredDocuments.map((doc) => {
-                  const employee = getEmployeeById(doc.employeeId);
+                  const employee = doc.employees;
                   return (
                     <tr key={doc.id} className="border-b border-[#E5E7EB] last:border-0 bg-white hover:bg-[#F9FAFB] transition-colors">
                       <td className="px-6 py-4">
@@ -158,28 +226,44 @@ const Documents = () => {
                             <FileText className="h-5 w-5 text-[#6B7280]" />
                           </div>
                           <div>
-                            <p className="font-medium text-[#374151]">{doc.title}</p>
-                            <p className="text-sm text-muted-foreground">{doc.fileName}</p>
+                            <p className="font-medium text-[#374151]">{doc.title || 'Untitled'}</p>
+                            <p className="text-sm text-muted-foreground">
+                              {doc.file_size ? `${(doc.file_size / 1024).toFixed(1)} KB` : 'N/A'}
+                            </p>
                           </div>
                         </div>
                       </td>
                       <td className="px-6 py-4 text-[#374151]">
-                        {employee?.fullName || 'Unknown'}
+                        {employee?.full_name || 'Unknown'}
                       </td>
-                      <td className="px-6 py-4 text-[#374151]">{doc.documentType}</td>
+                      <td className="px-6 py-4 text-[#374151]">{doc.document_type || 'N/A'}</td>
                       <td className="px-6 py-4 text-[#374151]">
-                        {format(new Date(doc.uploadedAt), 'MMM d, yyyy')}
+                        {doc.created_at ? format(new Date(doc.created_at), 'MMM d, yyyy') : 'N/A'}
                       </td>
                       <td className="px-6 py-4">
                         <div className="flex justify-end gap-2">
-                          <Button variant="ghost" size="sm">
+                          <Button 
+                            variant="ghost" 
+                            size="sm"
+                            onClick={() => handleDownload(doc.file_url, doc.title)}
+                            title="Download"
+                          >
                             <Download className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => setEditingDocument(doc)}
+                            title="Edit"
+                          >
+                            <Edit className="h-4 w-4" />
                           </Button>
                           <Button
                             variant="ghost"
                             size="sm"
                             onClick={() => setDeleteId(doc.id)}
                             className="text-destructive hover:text-destructive"
+                            title="Delete"
                           >
                             <Trash2 className="h-4 w-4" />
                           </Button>
@@ -211,6 +295,17 @@ const Documents = () => {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Edit Document Modal */}
+      {editingDocument && (
+        <DocumentFormModal
+          document={editingDocument}
+          onClose={() => {
+            setEditingDocument(null);
+            fetchData();
+          }}
+        />
+      )}
     </div>
   );
 };
