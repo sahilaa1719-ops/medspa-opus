@@ -37,9 +37,9 @@ const EmployeeSidebar = () => {
       <div className="flex h-full flex-col">
         {/* Logo */}
         <div className="flex h-16 flex-col justify-center border-b border-border px-6">
-          <div className="flex items-center gap-3">
-            <div className="flex items-center justify-center">
-              <img src="/logo.png?v=2" alt="Serene Aesthetics Logo" className="h-10 w-auto object-contain" />
+          <div className="flex items-center gap-2">
+            <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-gray-100">
+              <Sparkles className="h-5 w-5 text-[#6B7280]" />
             </div>
             <div className="flex flex-col">
               <span className="text-lg font-bold text-foreground">MedSpa Pro</span>
