@@ -51,8 +51,8 @@ const PayrollSidebar = () => {
         {/* Logo */}
         <div className="flex h-16 flex-col justify-center border-b border-[#1A252F] px-6">
           <div className="flex items-center gap-2">
-            <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-[#34495E]">
-              <Sparkles className="h-5 w-5 text-white" />
+            <div className="flex h-9 w-9 items-center justify-center">
+              <img src="/logo.png" alt="MedSpa Logo" className="h-9 w-9 object-contain" />
             </div>
             <div className="flex flex-col">
               <span className="text-lg font-bold text-white">MedSpa Pro</span>
