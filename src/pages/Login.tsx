@@ -184,34 +184,6 @@ const Login = () => {
               )}
             </Button>
           </form>
-
-          {/* Demo credentials */}
-          <div className="mt-6 rounded-lg bg-muted/50 p-4">
-            <p className="text-xs font-medium text-muted-foreground mb-2">Demo Credentials:</p>
-            
-            <div className="space-y-2">
-              <div>
-                <p className="text-xs font-medium text-muted-foreground">Admin Portal:</p>
-                <p className="text-sm text-card-foreground">
-                  <span className="font-mono">admin@medspa.com</span> / <span className="font-mono">admin123</span>
-                </p>
-              </div>
-              
-              <div>
-                <p className="text-xs font-medium text-muted-foreground">Payroll Portal:</p>
-                <p className="text-sm text-card-foreground">
-                  <span className="font-mono">payroll@medspa.com</span> / <span className="font-mono">payroll123</span>
-                </p>
-              </div>
-              
-              <div>
-                <p className="text-xs font-medium text-muted-foreground">Employee Portal:</p>
-                <p className="text-sm text-card-foreground">
-                  <span className="font-mono">employee@medspa.com</span> / <span className="font-mono">employee123</span>
-                </p>
-              </div>
-            </div>
-          </div>
         </div>
 
         {/* Forgot Password Dialog */}
