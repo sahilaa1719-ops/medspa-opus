@@ -183,7 +183,6 @@ const Licenses = () => {
                   setSelectedStatus('all');
                 }}
                 className="mt-2">
-              >
                 Clear Filters
               </Button>
             </div>
