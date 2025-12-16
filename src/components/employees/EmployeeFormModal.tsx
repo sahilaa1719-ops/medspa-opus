@@ -493,20 +493,15 @@ export const EmployeeFormModal = ({ open, onClose, employeeId }: EmployeeFormMod
           if (userError) {
             console.error('Error creating user account:', userError);
             console.error('Error details:', JSON.stringify(userError, null, 2));
-            alert(`Login account creation failed: ${userError.message}\n\nError code: ${userError.code}`);
+            toast.error(`Login account creation failed: ${userError.message}\n\nError code: ${userError.code}`, {
+              duration: 8000
+            });
             toast.error('Employee created but login account failed. Please create manually.');
           } else {
-            // Show credentials to admin via alert
-            alert(`Employee created successfully!
-
-Login Credentials:
-Email: ${data.email}
-Password: ${generatedPassword}
-
-Please save this password and share it with the employee.`);
-            
-            // Also show toast for confirmation
-            toast.success('Employee created successfully! Check the alert for login credentials.', { duration: 10000 });
+            // Show credentials to admin via toast
+            toast.success(`Employee created successfully!\n\nLogin Credentials:\nEmail: ${data.email}\nPassword: ${generatedPassword}\n\nPlease save this password and share it with the employee.`, {
+              duration: 15000
+            });
             
             // Also log to console for admin to copy
             console.log('=== NEW EMPLOYEE LOGIN CREDENTIALS ===');

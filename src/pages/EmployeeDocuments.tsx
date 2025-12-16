@@ -153,10 +153,10 @@ const EmployeeDocuments = () => {
       
       // Refresh documents
       fetchDocuments();
-      alert('Document deleted successfully');
+      toast.success('Document deleted successfully');
     } catch (error) {
       console.error('Error deleting document:', error);
-      alert('Failed to delete document');
+      toast.error('Failed to delete document');
     }
   };
 
@@ -174,7 +174,7 @@ const EmployeeDocuments = () => {
       window.URL.revokeObjectURL(url);
     } catch (error) {
       console.error('Download error:', error);
-      alert('Failed to download file');
+      toast.error('Failed to download file');
     }
   };
 

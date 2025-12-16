@@ -18,6 +18,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Download, FileText, Receipt } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
+import { toast } from 'sonner';
 import { useAuth } from '@/context/AuthContext';
 
 const EmployeeTaxView = () => {
@@ -77,7 +78,7 @@ const EmployeeTaxView = () => {
 
   const handleDownload = (fileUrl: string) => {
     if (!fileUrl) {
-      alert('No file available for download');
+      toast.error('No file available for download');
       return;
     }
     window.open(fileUrl, '_blank');

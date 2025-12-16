@@ -41,7 +41,7 @@ const EmployeeTaxes = () => {
       if (error) {
         console.error('Supabase error fetching employees:', error);
         console.error('Error details:', JSON.stringify(error, null, 2));
-        alert(`Failed to load employees: ${error.message}`);
+        toast.error(`Failed to load employees: ${error.message}`);
         throw error;
       }
       
@@ -86,7 +86,7 @@ const EmployeeTaxes = () => {
 
   const handleUpload = async () => {
     if (!selectedEmployee || !documentName || !taxYear || !file) {
-      alert('Please fill all fields and select a file');
+      toast.error('Please fill all fields and select a file');
       return;
     }
 
@@ -123,7 +123,7 @@ const EmployeeTaxes = () => {
 
       if (insertError) throw insertError;
 
-      alert('Tax document uploaded successfully!');
+      toast.success('Tax document uploaded successfully!');
       
       // Reset form
       setSelectedEmployee('');
@@ -135,7 +135,7 @@ const EmployeeTaxes = () => {
       fetchTaxDocuments();
     } catch (error) {
       console.error('Upload error:', error);
-      alert('Failed to upload tax document');
+      toast.error('Failed to upload tax document');
     } finally {
       setUploading(false);
     }
@@ -156,11 +156,11 @@ const EmployeeTaxes = () => {
 
       if (error) throw error;
 
-      alert('Tax document deleted successfully');
+      toast.success('Tax document deleted successfully');
       fetchTaxDocuments();
     } catch (error) {
       console.error('Delete error:', error);
-      alert('Failed to delete tax document');
+      toast.error('Failed to delete tax document');
     }
   };
 
