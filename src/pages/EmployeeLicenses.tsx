@@ -31,7 +31,7 @@ const EmployeeLicenses = () => {
   }, [user?.email]);
 
   const fetchLicenses = async () => {
-    if (!user?.email || isLoading) return; // Prevent duplicate fetches
+    if (!user?.email) return;
 
     try {
       setIsLoading(true);

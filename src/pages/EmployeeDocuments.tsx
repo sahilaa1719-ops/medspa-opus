@@ -43,7 +43,7 @@ const EmployeeDocuments = () => {
   }, [user?.email]);
 
   const fetchDocuments = async () => {
-    if (!user?.email || loading) return; // Prevent duplicate fetches
+    if (!user?.email) return;
     
     try {
       setLoading(true);
