@@ -46,6 +46,24 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   return <>{children}</>;
 };
 
+const ProtectedAdminRoute = ({ children }: { children: React.ReactNode }) => {
+  const { user, isLoading } = useAuth();
+
+  if (isLoading) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-background">
+        <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
+      </div>
+    );
+  }
+
+  if (user?.role !== 'admin' && user?.role !== 'payroll') {
+    return <Navigate to="/employee-dashboard" replace />;
+  }
+
+  return <>{children}</>;
+};
+
 const AppRoutes = () => {
   const { user } = useAuth();
 
@@ -72,7 +90,9 @@ const AppRoutes = () => {
         path="/"
         element={
           <ProtectedRoute>
-            <MainLayout />
+            <ProtectedAdminRoute>
+              <MainLayout />
+            </ProtectedAdminRoute>
           </ProtectedRoute>
         }
       >
