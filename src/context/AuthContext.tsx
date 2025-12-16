@@ -32,12 +32,41 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         const name = supabaseUser.user_metadata?.name || supabaseUser.email || '';
         const isFirstLogin = supabaseUser.user_metadata?.is_first_login ?? false;
 
+        // Check if session has expired based on Remember Me setting
+        const rememberMe = localStorage.getItem('rememberMe') === 'true';
+        const lastActivity = localStorage.getItem('lastActivity');
+        const loginTime = localStorage.getItem('loginTime');
+        
+        if (lastActivity && loginTime) {
+          const now = Date.now();
+          const lastActivityTime = parseInt(lastActivity);
+          const loginTimeStamp = parseInt(loginTime);
+          
+          // If Remember Me: logout after 24 hours from login
+          // If not Remember Me: logout after 12 hours of inactivity
+          const shouldLogout = rememberMe
+            ? (now - loginTimeStamp > 24 * 60 * 60 * 1000) // 24 hours from login
+            : (now - lastActivityTime > 12 * 60 * 60 * 1000); // 12 hours of inactivity
+          
+          if (shouldLogout) {
+            supabase.auth.signOut();
+            localStorage.removeItem('lastActivity');
+            localStorage.removeItem('loginTime');
+            setUser(null);
+            setIsLoading(false);
+            return;
+          }
+        }
+
         setUser({
           email: supabaseUser.email || '',
           name,
           role,
           isFirstLogin
         });
+        
+        // Update last activity
+        localStorage.setItem('lastActivity', Date.now().toString());
       }
       setIsLoading(false);
     });
@@ -58,12 +87,58 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         });
       } else {
         setUser(null);
+        localStorage.removeItem('lastActivity');
+        localStorage.removeItem('loginTime');
       }
       setIsLoading(false);
     });
 
-    return () => subscription.unsubscribe();
-  }, []);
+    // Track user activity to update lastActivity timestamp
+    const updateActivity = () => {
+      if (user) {
+        localStorage.setItem('lastActivity', Date.now().toString());
+      }
+    };
+
+    // Listen for user activity
+    window.addEventListener('mousemove', updateActivity);
+    window.addEventListener('keydown', updateActivity);
+    window.addEventListener('click', updateActivity);
+    window.addEventListener('scroll', updateActivity);
+
+    // Check session validity every minute
+    const sessionCheckInterval = setInterval(() => {
+      const rememberMe = localStorage.getItem('rememberMe') === 'true';
+      const lastActivity = localStorage.getItem('lastActivity');
+      const loginTime = localStorage.getItem('loginTime');
+      
+      if (user && lastActivity && loginTime) {
+        const now = Date.now();
+        const lastActivityTime = parseInt(lastActivity);
+        const loginTimeStamp = parseInt(loginTime);
+        
+        const shouldLogout = rememberMe
+          ? (now - loginTimeStamp > 24 * 60 * 60 * 1000) // 24 hours from login
+          : (now - lastActivityTime > 12 * 60 * 60 * 1000); // 12 hours of inactivity
+        
+        if (shouldLogout) {
+          supabase.auth.signOut();
+          localStorage.removeItem('lastActivity');
+          localStorage.removeItem('loginTime');
+          setUser(null);
+        }
+      }
+    }, 60000); // Check every minute
+
+    return () => {
+      subscription.unsubscribe();
+      window.removeEventListener('mousemove', updateActivity);
+      window.removeEventListener('keydown', updateActivity);
+      window.removeEventListener('click', updateActivity);
+      window.removeEventListener('scroll', updateActivity);
+      clearInterval(sessionCheckInterval);
+    };
+  }, [user]);
 
   const login = async (email: string, password: string): Promise<{ success: boolean; role?: 'admin' | 'employee' | 'payroll'; isFirstLogin?: boolean }> => {
     try {
@@ -87,6 +162,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         role,
         isFirstLogin
       });
+
+      // Set login time and last activity
+      localStorage.setItem('loginTime', Date.now().toString());
+      localStorage.setItem('lastActivity', Date.now().toString());
 
       return { success: true, role, isFirstLogin };
     } catch (error) {
@@ -130,6 +209,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       await supabase.auth.signOut();
       setUser(null);
+      localStorage.removeItem('lastActivity');
+      localStorage.removeItem('loginTime');
     } catch (error) {
       console.error('Logout error:', error);
     }
