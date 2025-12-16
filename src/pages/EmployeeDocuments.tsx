@@ -37,21 +37,25 @@ const EmployeeDocuments = () => {
   const [file, setFile] = useState<File | null>(null);
 
   useEffect(() => {
-    fetchDocuments();
-  }, [user]);
+    if (user?.email) {
+      fetchDocuments();
+    }
+  }, [user?.email]);
 
   const fetchDocuments = async () => {
-    if (!user) return;
+    if (!user?.email || loading) return; // Prevent duplicate fetches
     
     try {
       setLoading(true);
       
       // Get employee_id for current user
-      const { data: employeeData } = await supabase
+      const { data: employeeData, error: employeeError } = await supabase
         .from('employees')
         .select('id')
         .eq('email', user.email)
         .single();
+
+      if (employeeError) throw employeeError;
 
       if (employeeData) {
         setEmployeeId(employeeData.id);
@@ -67,6 +71,7 @@ const EmployeeDocuments = () => {
       }
     } catch (error) {
       console.error('Error fetching documents:', error);
+      toast.error('Failed to load documents');
     } finally {
       setLoading(false);
     }

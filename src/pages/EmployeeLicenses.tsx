@@ -31,7 +31,7 @@ const EmployeeLicenses = () => {
   }, [user?.email]);
 
   const fetchLicenses = async () => {
-    if (!user?.email) return;
+    if (!user?.email || isLoading) return; // Prevent duplicate fetches
 
     try {
       setIsLoading(true);
@@ -45,6 +45,7 @@ const EmployeeLicenses = () => {
 
       if (employeeError) {
         console.error('Error fetching employee:', employeeError);
+        toast.error('Failed to load employee data');
         return;
       }
 
@@ -60,6 +61,7 @@ const EmployeeLicenses = () => {
 
         if (licensesError) {
           console.error('Error fetching licenses:', licensesError);
+          toast.error('Failed to load licenses');
           return;
         }
 
@@ -89,6 +91,7 @@ const EmployeeLicenses = () => {
       }
     } catch (error) {
       console.error('Error:', error);
+      toast.error('An error occurred while loading licenses');
     } finally {
       setIsLoading(false);
     }
