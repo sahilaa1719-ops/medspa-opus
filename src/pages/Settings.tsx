@@ -5,7 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useAuth } from '@/context/AuthContext';
 import { toast } from 'sonner';
-import { Plus, Trash2, FileText, Check, X, Eye, EyeOff, Lock } from 'lucide-react';
+import { Plus, Trash2, FileText, Check, X, Eye, EyeOff, Lock, Award, Briefcase } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { supabase } from '@/lib/supabase';
 import {
@@ -19,12 +19,29 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 
+interface TypeItem {
+  id: string;
+  name: string;
+}
+
 const Settings = () => {
   const { user } = useAuth();
-  const [documentTypes, setDocumentTypes] = useState<string[]>([]);
+  
+  // Document Types states
+  const [documentTypes, setDocumentTypes] = useState<TypeItem[]>([]);
   const [newDocType, setNewDocType] = useState('');
+  
+  // License Types states
+  const [licenseTypes, setLicenseTypes] = useState<TypeItem[]>([]);
+  const [newLicenseType, setNewLicenseType] = useState('');
+  
+  // Position Types states
+  const [positionTypes, setPositionTypes] = useState<TypeItem[]>([]);
+  const [newPositionType, setNewPositionType] = useState('');
+  
+  // Delete confirmation states
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
-  const [typeToDelete, setTypeToDelete] = useState('');
+  const [typeToDelete, setTypeToDelete] = useState<{ id: string; name: string; type: 'document' | 'license' | 'position' } | null>(null);
   
   // Password change states
   const [currentPassword, setCurrentPassword] = useState('');
@@ -66,60 +83,206 @@ const Settings = () => {
 
   const isPasswordValid = Object.values(passwordValidation).every(Boolean) && newPassword === confirmPassword && newPassword.length > 0;
 
-  // Load document types from localStorage
+  // Load document types from database
   useEffect(() => {
-    const saved = localStorage.getItem('customDocumentTypes');
-    if (saved) {
-      setDocumentTypes(JSON.parse(saved));
-    } else {
-      // Default document types
-      const defaults = [
-        'Contract',
-        'License Copy',
-        'ID Copy',
-        'Insurance',
-        'Certification',
-        'Policy',
-        'Other',
-      ];
-      setDocumentTypes(defaults);
-      localStorage.setItem('customDocumentTypes', JSON.stringify(defaults));
-    }
+    loadDocumentTypes();
+    loadLicenseTypes();
+    loadPositionTypes();
   }, []);
 
-  const saveDocumentTypes = (types: string[]) => {
-    localStorage.setItem('customDocumentTypes', JSON.stringify(types));
-    setDocumentTypes(types);
+  const loadDocumentTypes = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('document_types')
+        .select('*')
+        .order('name');
+      
+      if (error) throw error;
+      setDocumentTypes(data || []);
+    } catch (error) {
+      console.error('Error loading document types:', error);
+      toast.error('Failed to load document types');
+    }
   };
 
-  const handleAddDocType = () => {
+  const loadLicenseTypes = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('license_types')
+        .select('*')
+        .order('name');
+      
+      if (error) throw error;
+      setLicenseTypes(data || []);
+    } catch (error) {
+      console.error('Error loading license types:', error);
+      toast.error('Failed to load license types');
+    }
+  };
+
+  const loadPositionTypes = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('position_types')
+        .select('*')
+        .order('name');
+      
+      if (error) throw error;
+      setPositionTypes(data || []);
+    } catch (error) {
+      console.error('Error loading position types:', error);
+      toast.error('Failed to load position types');
+    }
+  };
+
+  const handleAddDocType = async () => {
     if (!newDocType.trim()) {
       toast.error('Please enter a document type name');
       return;
     }
 
-    if (documentTypes.includes(newDocType.trim())) {
+    if (documentTypes.some(t => t.name.toLowerCase() === newDocType.trim().toLowerCase())) {
       toast.error('This document type already exists');
       return;
     }
 
-    const updated = [...documentTypes, newDocType.trim()];
-    saveDocumentTypes(updated);
-    setNewDocType('');
-    toast.success('Document type added successfully');
+    try {
+      const { data, error } = await supabase
+        .from('document_types')
+        .insert([{ name: newDocType.trim() }])
+        .select()
+        .single();
+
+      if (error) throw error;
+      
+      setDocumentTypes([...documentTypes, data]);
+      setNewDocType('');
+      toast.success('Document type added successfully');
+    } catch (error: any) {
+      console.error('Error adding document type:', error);
+      if (error.code === '23505') {
+        toast.error('This document type already exists');
+      } else {
+        toast.error('Failed to add document type');
+      }
+    }
   };
 
-  const handleDeleteClick = (type: string) => {
-    setTypeToDelete(type);
+  const handleAddLicenseType = async () => {
+    if (!newLicenseType.trim()) {
+      toast.error('Please enter a license type name');
+      return;
+    }
+
+    if (licenseTypes.some(t => t.name.toLowerCase() === newLicenseType.trim().toLowerCase())) {
+      toast.error('This license type already exists');
+      return;
+    }
+
+    try {
+      const { data, error } = await supabase
+        .from('license_types')
+        .insert([{ name: newLicenseType.trim() }])
+        .select()
+        .single();
+
+      if (error) throw error;
+      
+      setLicenseTypes([...licenseTypes, data]);
+      setNewLicenseType('');
+      toast.success('License type added successfully');
+    } catch (error: any) {
+      console.error('Error adding license type:', error);
+      if (error.code === '23505') {
+        toast.error('This license type already exists');
+      } else {
+        toast.error('Failed to add license type');
+      }
+    }
+  };
+
+  const handleAddPositionType = async () => {
+    if (!newPositionType.trim()) {
+      toast.error('Please enter a position type name');
+      return;
+    }
+
+    if (positionTypes.some(t => t.name.toLowerCase() === newPositionType.trim().toLowerCase())) {
+      toast.error('This position type already exists');
+      return;
+    }
+
+    try {
+      const { data, error } = await supabase
+        .from('position_types')
+        .insert([{ name: newPositionType.trim() }])
+        .select()
+        .single();
+
+      if (error) throw error;
+      
+      setPositionTypes([...positionTypes, data]);
+      setNewPositionType('');
+      toast.success('Position type added successfully');
+    } catch (error: any) {
+      console.error('Error adding position type:', error);
+      if (error.code === '23505') {
+        toast.error('This position type already exists');
+      } else {
+        toast.error('Failed to add position type');
+      }
+    }
+  };
+
+  const handleDeleteClick = (item: TypeItem, type: 'document' | 'license' | 'position') => {
+    setTypeToDelete({ id: item.id, name: item.name, type });
     setDeleteConfirmOpen(true);
   };
 
-  const handleDeleteConfirm = () => {
-    const updated = documentTypes.filter(t => t !== typeToDelete);
-    saveDocumentTypes(updated);
-    setDeleteConfirmOpen(false);
-    setTypeToDelete('');
-    toast.success('Document type removed successfully');
+  const handleDeleteConfirm = async () => {
+    if (!typeToDelete) return;
+
+    try {
+      let tableName = '';
+      switch (typeToDelete.type) {
+        case 'document':
+          tableName = 'document_types';
+          break;
+        case 'license':
+          tableName = 'license_types';
+          break;
+        case 'position':
+          tableName = 'position_types';
+          break;
+      }
+
+      const { error } = await supabase
+        .from(tableName)
+        .delete()
+        .eq('id', typeToDelete.id);
+
+      if (error) throw error;
+
+      // Update local state
+      switch (typeToDelete.type) {
+        case 'document':
+          setDocumentTypes(documentTypes.filter(t => t.id !== typeToDelete.id));
+          break;
+        case 'license':
+          setLicenseTypes(licenseTypes.filter(t => t.id !== typeToDelete.id));
+          break;
+        case 'position':
+          setPositionTypes(positionTypes.filter(t => t.id !== typeToDelete.id));
+          break;
+      }
+
+      setDeleteConfirmOpen(false);
+      setTypeToDelete(null);
+      toast.success(`${typeToDelete.type === 'document' ? 'Document' : typeToDelete.type === 'license' ? 'License' : 'Position'} type removed successfully`);
+    } catch (error) {
+      console.error('Error deleting type:', error);
+      toast.error('Failed to delete type');
+    }
   };
 
   const handleChangePassword = async () => {
@@ -208,14 +371,124 @@ const Settings = () => {
                   <div className="border border-gray-200 rounded-lg divide-y">
                     {documentTypes.map((type) => (
                       <div
-                        key={type}
+                        key={type.id}
                         className="flex items-center justify-between p-3 hover:bg-gray-50"
                       >
-                        <span className="text-sm font-medium">{type}</span>
+                        <span className="text-sm font-medium">{type.name}</span>
                         <Button
                           variant="ghost"
                           size="sm"
-                          onClick={() => handleDeleteClick(type)}
+                          onClick={() => handleDeleteClick(type, 'document')}
+                          className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* License Types Management */}
+          <Card className="border border-gray-200 bg-white shadow-sm">
+            <CardHeader>
+              <CardTitle className="text-lg font-semibold flex items-center gap-2">
+                <Award className="h-5 w-5" />
+                License Types Management
+              </CardTitle>
+              <p className="text-sm text-muted-foreground mt-1">
+                Manage the license types available when adding employee licenses
+              </p>
+            </CardHeader>
+            <CardContent>
+              {/* Add new license type */}
+              <div className="flex gap-2 mb-4">
+                <Input
+                  placeholder="Enter new license type..."
+                  value={newLicenseType}
+                  onChange={(e) => setNewLicenseType(e.target.value)}
+                  onKeyPress={(e) => e.key === 'Enter' && handleAddLicenseType()}
+                />
+                <Button onClick={handleAddLicenseType}>
+                  <Plus className="h-4 w-4 mr-2" />
+                  Add
+                </Button>
+              </div>
+
+              {/* License types list */}
+              <div className="space-y-2">
+                <Label className="text-sm font-semibold">Current License Types:</Label>
+                {licenseTypes.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">No license types configured</p>
+                ) : (
+                  <div className="border border-gray-200 rounded-lg divide-y">
+                    {licenseTypes.map((type) => (
+                      <div
+                        key={type.id}
+                        className="flex items-center justify-between p-3 hover:bg-gray-50"
+                      >
+                        <span className="text-sm font-medium">{type.name}</span>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleDeleteClick(type, 'license')}
+                          className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Position Types Management */}
+          <Card className="border border-gray-200 bg-white shadow-sm">
+            <CardHeader>
+              <CardTitle className="text-lg font-semibold flex items-center gap-2">
+                <Briefcase className="h-5 w-5" />
+                Position Types Management
+              </CardTitle>
+              <p className="text-sm text-muted-foreground mt-1">
+                Manage the position types available when adding employees
+              </p>
+            </CardHeader>
+            <CardContent>
+              {/* Add new position type */}
+              <div className="flex gap-2 mb-4">
+                <Input
+                  placeholder="Enter new position type..."
+                  value={newPositionType}
+                  onChange={(e) => setNewPositionType(e.target.value)}
+                  onKeyPress={(e) => e.key === 'Enter' && handleAddPositionType()}
+                />
+                <Button onClick={handleAddPositionType}>
+                  <Plus className="h-4 w-4 mr-2" />
+                  Add
+                </Button>
+              </div>
+
+              {/* Position types list */}
+              <div className="space-y-2">
+                <Label className="text-sm font-semibold">Current Position Types:</Label>
+                {positionTypes.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">No position types configured</p>
+                ) : (
+                  <div className="border border-gray-200 rounded-lg divide-y">
+                    {positionTypes.map((type) => (
+                      <div
+                        key={type.id}
+                        className="flex items-center justify-between p-3 hover:bg-gray-50"
+                      >
+                        <span className="text-sm font-medium">{type.name}</span>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleDeleteClick(type, 'position')}
                           className="text-red-600 hover:text-red-700 hover:bg-red-50"
                         >
                           <Trash2 className="h-4 w-4" />
@@ -417,11 +690,13 @@ const Settings = () => {
       <AlertDialog open={deleteConfirmOpen} onOpenChange={setDeleteConfirmOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Delete Document Type</AlertDialogTitle>
+            <AlertDialogTitle>
+              Delete {typeToDelete?.type === 'document' ? 'Document' : typeToDelete?.type === 'license' ? 'License' : 'Position'} Type
+            </AlertDialogTitle>
             <AlertDialogDescription>
-              Are you sure you want to delete "<strong>{typeToDelete}</strong>"?
+              Are you sure you want to delete "<strong>{typeToDelete?.name}</strong>"?
               <br /><br />
-              This will remove it from the document type dropdown in the employee form.
+              This will remove it from the {typeToDelete?.type === 'document' ? 'document' : typeToDelete?.type === 'license' ? 'license' : 'position'} type dropdown in the employee form.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

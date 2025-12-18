@@ -21,7 +21,11 @@ import {
 } from '@/components/ui/select';
 import { toast } from 'sonner';
 import { supabase } from '@/lib/supabase';
-import { DOCUMENT_TYPES } from '@/lib/constants';
+
+interface TypeItem {
+  id: string;
+  name: string;
+}
 
 const formSchema = z.object({
   title: z.string().min(1, 'Document title is required'),
@@ -45,6 +49,7 @@ export const DocumentFormModal = ({
   employeeId,
 }: DocumentFormModalProps) => {
   const [saving, setSaving] = useState(false);
+  const [documentTypes, setDocumentTypes] = useState<TypeItem[]>([]);
 
   const {
     register,
@@ -63,6 +68,10 @@ export const DocumentFormModal = ({
   });
 
   useEffect(() => {
+    loadDocumentTypes();
+  }, []);
+
+  useEffect(() => {
     if (document) {
       reset({
         title: document.title || '',
@@ -77,6 +86,20 @@ export const DocumentFormModal = ({
       });
     }
   }, [document, reset]);
+
+  const loadDocumentTypes = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('document_types')
+        .select('*')
+        .order('name');
+      
+      if (error) throw error;
+      setDocumentTypes(data || []);
+    } catch (error) {
+      console.error('Error loading document types:', error);
+    }
+  };
 
   const onSubmit = async (data: FormData) => {
     try {
@@ -146,9 +169,9 @@ export const DocumentFormModal = ({
                 <SelectValue placeholder="Select document type" />
               </SelectTrigger>
               <SelectContent>
-                {DOCUMENT_TYPES.map((type) => (
-                  <SelectItem key={type} value={type}>
-                    {type}
+                {documentTypes.map((type) => (
+                  <SelectItem key={type.id} value={type.name}>
+                    {type.name}
                   </SelectItem>
                 ))}
               </SelectContent>

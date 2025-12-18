@@ -21,7 +21,11 @@ import {
 import { useData } from '@/context/DataContext';
 import { toast } from 'sonner';
 import { supabase } from '@/lib/supabase';
-import { LICENSE_TYPES } from '@/lib/constants';
+
+interface TypeItem {
+  id: string;
+  name: string;
+}
 
 const formSchema = z.object({
   licenseType: z.string().min(1, 'License type is required'),
@@ -48,6 +52,7 @@ export const LicenseFormModal = ({
   licenseId,
 }: LicenseFormModalProps) => {
   const [saving, setSaving] = useState(false);
+  const [licenseTypes, setLicenseTypes] = useState<TypeItem[]>([]);
 
   const {
     register,
@@ -65,6 +70,10 @@ export const LicenseFormModal = ({
       expiryDate: '',
     },
   });
+
+  useEffect(() => {
+    loadLicenseTypes();
+  }, []);
 
   useEffect(() => {
     if (license) {
@@ -87,6 +96,20 @@ export const LicenseFormModal = ({
       });
     }
   }, [license, reset]);
+
+  const loadLicenseTypes = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('license_types')
+        .select('*')
+        .order('name');
+      
+      if (error) throw error;
+      setLicenseTypes(data || []);
+    } catch (error) {
+      console.error('Error loading license types:', error);
+    }
+  };
 
   const onSubmit = async (data: FormData) => {
     try {
@@ -158,9 +181,9 @@ export const LicenseFormModal = ({
                 <SelectValue placeholder="Select license type" />
               </SelectTrigger>
               <SelectContent>
-                {LICENSE_TYPES.map((type) => (
-                  <SelectItem key={type} value={type}>
-                    {type}
+                {licenseTypes.map((type) => (
+                  <SelectItem key={type.id} value={type.name}>
+                    {type.name}
                   </SelectItem>
                 ))}
               </SelectContent>

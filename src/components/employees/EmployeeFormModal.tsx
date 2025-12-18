@@ -31,51 +31,13 @@ import {
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { useData } from '@/context/DataContext';
 import { toast } from 'sonner';
-import { Position, LicenseType, DocumentType } from '@/types';
 import { supabase } from '@/lib/supabase';
 import { supabaseAdmin } from '@/lib/supabaseAdmin';
 
-const positions: Position[] = [
-  'RN',
-  'LPN',
-  'Aesthetician',
-  'Medical Director',
-  'Laser Technician',
-  'Front Desk',
-  'Manager',
-  'Other',
-];
-
-const licenseTypes: LicenseType[] = [
-  'RN License',
-  'LPN License',
-  'Aesthetician License',
-  'Medical Director License',
-  'Botox Certification',
-  'Dermal Filler Certification',
-  'Laser Operator Certification',
-  'CPR Certification',
-  'First Aid Certification',
-  'Other',
-];
-
-// Function to get document types from localStorage
-const getDocumentTypes = (): DocumentType[] => {
-  const saved = localStorage.getItem('customDocumentTypes');
-  if (saved) {
-    return JSON.parse(saved);
-  }
-  // Default document types if none are saved
-  return [
-    'Contract',
-    'License Copy',
-    'ID Copy',
-    'Insurance',
-    'Certification',
-    'Policy',
-    'Other',
-  ];
-};
+interface TypeItem {
+  id: string;
+  name: string;
+}
 
 interface DocumentUpload {
   id: string;
@@ -157,14 +119,60 @@ export const EmployeeFormModal = ({ open, onClose, employeeId }: EmployeeFormMod
   const [licenses, setLicenses] = useState<LicenseEntry[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showAddDocumentForm, setShowAddDocumentForm] = useState(false);
-  const [documentTypes, setDocumentTypes] = useState<DocumentType[]>(getDocumentTypes());
+  const [documentTypes, setDocumentTypes] = useState<TypeItem[]>([]);
+  const [licenseTypes, setLicenseTypes] = useState<TypeItem[]>([]);
+  const [positionTypes, setPositionTypes] = useState<TypeItem[]>([]);
 
-  // Refresh document types when modal opens
+  // Load types from database when modal opens
   useEffect(() => {
     if (open) {
-      setDocumentTypes(getDocumentTypes());
+      loadDocumentTypes();
+      loadLicenseTypes();
+      loadPositionTypes();
     }
   }, [open]);
+
+  const loadDocumentTypes = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('document_types')
+        .select('*')
+        .order('name');
+      
+      if (error) throw error;
+      setDocumentTypes(data || []);
+    } catch (error) {
+      console.error('Error loading document types:', error);
+    }
+  };
+
+  const loadLicenseTypes = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('license_types')
+        .select('*')
+        .order('name');
+      
+      if (error) throw error;
+      setLicenseTypes(data || []);
+    } catch (error) {
+      console.error('Error loading license types:', error);
+    }
+  };
+
+  const loadPositionTypes = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('position_types')
+        .select('*')
+        .order('name');
+      
+      if (error) throw error;
+      setPositionTypes(data || []);
+    } catch (error) {
+      console.error('Error loading position types:', error);
+    }
+  };
 
   const {
     register,
@@ -763,9 +771,9 @@ export const EmployeeFormModal = ({ open, onClose, employeeId }: EmployeeFormMod
                       <SelectValue placeholder="Select position" />
                     </SelectTrigger>
                     <SelectContent>
-                      {positions.map((pos) => (
-                        <SelectItem key={pos} value={pos}>
-                          {pos}
+                      {positionTypes.map((pos) => (
+                        <SelectItem key={pos.id} value={pos.name}>
+                          {pos.name}
                         </SelectItem>
                       ))}
                     </SelectContent>
@@ -925,14 +933,11 @@ export const EmployeeFormModal = ({ open, onClose, employeeId }: EmployeeFormMod
                               <SelectValue placeholder="Select document type" />
                             </SelectTrigger>
                             <SelectContent>
-                              <SelectItem value="Contract">Employment Contract</SelectItem>
-                              <SelectItem value="License Copy">Medical License</SelectItem>
-                              <SelectItem value="License Copy">Professional License Copy</SelectItem>
-                              <SelectItem value="ID Copy">Government ID Copy</SelectItem>
-                              <SelectItem value="Insurance">Insurance Documents</SelectItem>
-                              <SelectItem value="Certification">Background Check</SelectItem>
-                              <SelectItem value="Certification">Certifications</SelectItem>
-                              <SelectItem value="Other">Other Documents</SelectItem>
+                              {documentTypes.map((type) => (
+                                <SelectItem key={type.id} value={type.name}>
+                                  {type.name}
+                                </SelectItem>
+                              ))}
                             </SelectContent>
                           </Select>
                         </div>
@@ -1029,8 +1034,8 @@ export const EmployeeFormModal = ({ open, onClose, employeeId }: EmployeeFormMod
                           </SelectTrigger>
                           <SelectContent>
                             {licenseTypes.map((type) => (
-                              <SelectItem key={type} value={type}>
-                                {type}
+                              <SelectItem key={type.id} value={type.name}>
+                                {type.name}
                               </SelectItem>
                             ))}
                           </SelectContent>
